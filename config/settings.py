@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY", default="")
 DEBUG = True
 ALLOWED_HOSTS = [
-    "atasehir.algi.ai",
+    "safe.algi.ai",
     "localhost",
     "127.0.0.1",
     "148.251.52.194",
@@ -229,8 +229,8 @@ SESSION_COOKIE_AGE = 3600
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
-    "https://atasehir.algi.ai",
-    "https://atasehir.algi.ai",  # Add HTTPS version
+    "https://safe.algi.ai",
+    "https://safe.algi.ai",  # Add HTTPS version
     "http://148.251.52.194",
     "https://148.251.52.194",  # Add HTTPS version
     "http://95.216.211.228",  # Add HTTP version
@@ -262,8 +262,8 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
-    "https://atasehir.algi.ai",
-    "https://atasehir.algi.ai",  # Add HTTPS version
+    "https://safe.algi.ai",
+    "https://safe.algi.ai",  # Add HTTPS version
     "http://148.251.52.194",
     "https://148.251.52.194",  # Add HTTPS version
     "https://api.mapbox.com",  # Add this line
