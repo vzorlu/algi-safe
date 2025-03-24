@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Daphne Debug",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "/Users/volkanzorlu/opt/anaconda3/bin/daphne",
+      "args": [
+        "-b",
+        "0.0.0.0",
+        "-p",
+        "8000",
+        "config.asgi:application"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "DJANGO_SETTINGS_MODULE": "config.settings"
+      }
+    }
+  ]
+}

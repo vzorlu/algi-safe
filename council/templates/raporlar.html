@@ -1,0 +1,1524 @@
+{% extends layout_path %}
+{% load static %}
+{% load i18n %}
+{% load notification_filters %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-multiselect/1.1.2/css/bootstrap-multiselect.min.css">
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+<!-- Remove DataTables CSS -->
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<!-- Move jQuery to the very top -->
+<script src="{% static 'vendor/libs/jquery/jquery.js' %}"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<!-- Rest of vendor scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/tr.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/tempusdominus-bootstrap-4/5.39.0/js/tempusdominus-bootstrap-4.min.js"></script>
+<script src="{% static 'vendor/libs/tagify/tagify.js' %}"></script>
+<script src="{% static 'vendor/libs/flatpickr/flatpickr.js' %}"></script>
+<!-- Corrected locale script path -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/tr.js"></script>
+<!-- Remove DataTables JS -->
+{% endblock %}
+
+{% block page_js %}
+{{ block.super }}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Check if jQuery is loaded
+    if (typeof jQuery === 'undefined') {
+      console.error('jQuery is not loaded');
+      return;
+    }
+
+
+
+    // Initialize flatpickr with error handling
+    const datePickerElement = document.querySelector('#bs-rangepicker-time');
+    if (datePickerElement) {
+      try {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+        flatpickr(datePickerElement, {
+          mode: 'range',
+          enableTime: true,
+          dateFormat: "d F Y H:i",
+          defaultDate: [today, todayEnd],
+          maxDate: 'today',
+          locale: Turkish,
+          onChange: function (selectedDates, dateStr) {
+            if (selectedDates.length === 2) {
+              const startDate = selectedDates[0];
+              const endDate = selectedDates[1];
+
+              // Format dates safely
+              const formattedStart = startDate ? startDate.toLocaleString('tr-TR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }) : '';
+
+              const formattedEnd = endDate ? endDate.toLocaleString('tr-TR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }) : '';
+
+              if (formattedStart && formattedEnd) {
+                datePickerElement.value = `${formattedStart} ile ${formattedEnd}`;
+              }
+            }
+          }
+        });
+
+        // Set initial value safely
+        const formattedStart = today.toLocaleString('tr-TR', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        const formattedEnd = todayEnd.toLocaleString('tr-TR', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        if (datePickerElement && formattedStart && formattedEnd) {
+          datePickerElement.value = `${formattedStart} ile ${formattedEnd}`;
+        }
+      } catch (error) {
+        console.error('Error initializing date picker:', error);
+      }
+    }
+  });
+</script>
+<script>
+  // Replace DataTables initialization with simple table functionality
+  $(document).ready(function () {
+    // Add sort functionality if needed
+    $('.btn-expand').on('click', function () {
+      $(this).find('i').toggleClass('ti-chevron-right ti-chevron-down');
+    });
+  });
+
+  $('.view-notification, .add-notification').off('click').on('click', function (e) {
+    e.preventDefault();
+    const btn = $(this);
+    const modal = $('#notificationModal');
+
+    // Reset form
+    $('#notificationForm')[0].reset();
+
+    // Set common values
+    $('#detectionId').val(btn.data('detection-id'));
+    $('#className').val(btn.data('class-name'));
+
+
+    modal.modal('show');
+  });
+
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // Get data from HTML
+    const streamDataElement = document.getElementById('stream-data');
+    if (streamDataElement) {
+      try {
+        const streamImagesData = JSON.parse(streamDataElement.dataset.images);
+        const tbody = document.querySelector('#detectionsTable tbody');
+
+        if (tbody) {
+          streamImagesData.forEach(function (imageData) {
+            const row = `
+                        <tr>
+                            <td>${imageData.id}</td>
+                            <td>${new Date().toLocaleDateString()}</td>
+                            <td>${imageData.detections[0]?.className || 'N/A'}</td>
+                            <td>Camera ${imageData.id}</td>
+                            <td>
+                                <button class="btn btn-primary btn-sm"
+                                        onclick="showDetectionModal(${imageData.id})">
+                                    Görüntüle
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+            tbody.innerHTML += row;
+          });
+        }
+      } catch (error) {
+        console.error('Error processing stream data:', error);
+      }
+    }
+  });
+
+  document.querySelectorAll('.view-notification').forEach(button => {
+    button.addEventListener('click', function () {
+      const modal = document.getElementById('notificationModal');
+      const bsModal = new bootstrap.Modal(modal);
+
+      // Get data from button attributes
+      document.getElementById('modalNotificationType').textContent = this.dataset.notificationType;
+      document.getElementById('modalTitle').textContent = this.dataset.notificationTitle;
+      document.getElementById('modalMessage').textContent = this.dataset.notificationMessage;
+      document.getElementById('modalDepartment').textContent = this.dataset.notificationDepartment;
+
+      bsModal.show();
+    });
+  });
+
+  function showDetectionModal(imageId) {
+    const imageData = JSON.parse(document.getElementById('stream-data').dataset.images)
+      .find(img => img.id === imageId);
+
+    if (imageData) {
+      const modal = new bootstrap.Modal(document.getElementById('detectionModal'));
+      initializeCanvas(imageData);
+      modal.show();
+    }
+  }
+
+  function initializeCanvas(imageData) {
+    const canvas = new fabric.Canvas('detectionCanvas');
+    canvasInstance = canvas;
+
+    fabric.Image.fromURL(imageData.imageUrl, function (img) {
+      const scale = Math.min(
+        canvas.width / img.width,
+        canvas.height / img.height
+      );
+
+      img.scale(scale);
+      canvas.add(img);
+      canvas.centerObject(img);
+
+      imageData.detections.forEach(function (detection) {
+        drawDetection(canvas, detection, scale);
+      });
+    });
+  }
+
+  function drawDetection(canvas, detection, scale) {
+    const rect = new fabric.Rect({
+      left: detection.x_min * scale,
+      top: detection.y_min * scale,
+      width: (detection.x_max - detection.x_min) * scale,
+      height: (detection.y_max - detection.y_min) * scale,
+      fill: 'transparent',
+      stroke: 'red',
+      strokeWidth: 2
+    });
+
+    const text = new fabric.Text(detection.className, {
+      left: detection.x_min * scale,
+      top: detection.y_min * scale - 20,
+      fill: 'red',
+      fontSize: 16
+    });
+
+    canvas.add(rect);
+    canvas.add(text);
+  }
+</script>
+
+<script>
+  // [1] streamImagesData yapısındaki Jinja döngüsünü düzeltildi
+  const streamImagesData = [
+    {% for image in stream_images %}
+  {
+    id: { { image.id } },
+    imageUrl: "{{ image.image.url|escapejs }}",
+      detections: [
+        {% for detection in image.detections.all %}
+  {
+    x_min: { { detection.x_min } },
+    y_min: { { detection.y_min } },
+    x_max: { { detection.x_max } },
+    y_max: { { detection.y_max } },
+    className: "{{ detection.class_name|escapejs }}"
+  } {% if not forloop.last %}, {% endif %}
+  {% endfor %}
+      ]
+    }{% if not forloop.last %}, {% endif %}
+  {% endfor %}
+  ];
+
+  // [2] "DOMContentLoaded" yerine "load" veya tam tersi kullanılabilir.
+  //     İkisinden biri yeterli. (Gereksiz kısımlar kaldırıldı)
+  window.addEventListener('DOMContentLoaded', function () {
+    streamImagesData.forEach(function (imageData) {
+      const modal = document.getElementById('imageModal-' + imageData.id);
+      let canvasInstance; // Canvas referansını saklamak için
+
+      if (modal) {
+        // [3] Modal açıldığında canvasInstance oluşturuyoruz
+        modal.addEventListener('shown.bs.modal', function () {
+          canvasInstance = new fabric.Canvas('canvas-' + imageData.id);
+
+          fabric.Image.fromURL(imageData.imageUrl, function (img) {
+            const modalBody = modal.querySelector('.modal-body');
+            const modalWidth = modalBody.clientWidth;
+            const scale = modalWidth / img.width;
+
+            // Canvas boyutlarını ayarla
+            canvasInstance.setWidth(img.width * scale);
+            canvasInstance.setHeight(img.height * scale);
+
+            // Ölçeklendir ve ortala
+            img.scale(scale);
+            canvasInstance.add(img);
+            canvasInstance.centerObject(img);
+
+            // Tespitleri çiz
+            imageData.detections.forEach(function (detection) {
+              const rect = new fabric.Rect({
+                left: detection.x_min * scale,
+                top: detection.y_min * scale,
+                width: (detection.x_max - detection.x_min) * scale,
+                height: (detection.y_max * scale) - (detection.y_min * scale),
+                fill: 'transparent',
+                stroke: 'red',
+                strokeWidth: 2,
+                selectable: false
+              });
+
+              const text = new fabric.Text(detection.className, {
+                left: detection.x_min * scale,
+                top: (detection.y_min * scale) - 15,
+                fontSize: 12 * scale,
+                fill: 'red',
+                fontFamily: 'Arial',
+                selectable: false
+              });
+
+              canvasInstance.add(rect);
+              canvasInstance.add(text);
+            });
+
+            canvasInstance.renderAll();
+          });
+        });
+
+        // [4] Modal kapandığında canvasInstance bellekten temizleniyor
+        modal.addEventListener('hidden.bs.modal', function () {
+          if (canvasInstance) {
+            canvasInstance.dispose();
+            canvasInstance = null;
+          }
+        });
+      }
+    });
+  });
+</script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Department class names mapping
+    const departmentClassNames = {
+        {% for dept in departments %}
+    { { dept.id } }: [
+      {% for class_name in dept.class_names.all %}
+            {
+      value: '{{ class_name.name|lower|cut:" "|slugify }}',
+      label: '{{ class_name.name }}'
+    }{% if not forloop.last %}, {% endif %}
+  {% endfor %}
+        ]{% if not forloop.last %}, {% endif %}
+  {% endfor %}
+    };
+
+  // Initialize Tagify with configuration
+  const detectionTypeInput = document.querySelector('#detectionType');
+  if (detectionTypeInput) {
+    const tagify = new Tagify(detectionTypeInput, {
+      whitelist: [],
+      dropdown: {
+        enabled: 0,
+        maxItems: Infinity,
+        position: 'text',
+        closeOnSelect: false
+      }
+    });
+
+  }
+});
+</script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Initialize date range picker
+    const rangePicker = document.querySelector('#bs-rangepicker-time');
+    if (rangePicker) {
+      const picker = flatpickr(rangePicker, {
+        mode: 'range',
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        time_24hr: true,
+        locale: {
+          firstDayOfWeek: 1
+        }
+      });
+
+      // Add the picker instance to the element for later access
+      rangePicker._flatpickr = picker;
+    }
+
+    // Initialize task due date picker
+    const taskDueDate = document.querySelector('#taskDueDate');
+    if (taskDueDate) {
+      flatpickr(taskDueDate, {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        time_24hr: true,
+        locale: 'tr'
+      });
+    }
+
+    // Initialize the date range quick select buttons
+    document.querySelectorAll('.dropdown-item').forEach(item => {
+      item.addEventListener('click', function (e) {
+        e.preventDefault();
+        const period = this.getAttribute('data-period');
+        if (period) {
+          setDateRange(period);
+        }
+      });
+    });
+  });
+
+  // Keep your other functions outside the DOMContentLoaded event
+  function setDateRange(period) {
+    const rangePicker = document.querySelector('#bs-rangepicker-time');
+    if (!rangePicker || !rangePicker._flatpickr) return;
+
+    const picker = rangePicker._flatpickr;
+    const now = new Date();
+    let startDate, endDate;
+
+    switch (period) {
+      case 'today':
+        startDate = new Date(now.setHours(0, 0, 0, 0));
+        endDate = new Date(now.setHours(23, 59, 59, 999));
+        break;
+      case 'week':
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - now.getDay());
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+        break;
+      case 'month':
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 1);
+        endDate = new Date(now);
+        break;
+      case 'threemonths':
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 3);
+        endDate = new Date(now);
+        break;
+    }
+
+    picker.setDate([startDate, endDate]);
+  }
+</script>
+
+<script>
+  // Single handler for add notification
+  $('.add-notification').off('click').on('click', function (e) {
+    e.preventDefault();
+    const btn = $(this);
+    const modal = $('#ruleModal');
+    const form = document.getElementById('ruleForm');
+
+    if (form) {
+      form.reset();
+
+      // Get the detection type from the closest row
+      const detectionType = btn.closest('tr').children('td').first().text().trim();
+      //console.log('Found Detection Type:', detectionType);
+
+      // Set the detection ID and class name
+      $('#detectionClassId').val(btn.data('detection-id'));
+
+      // Set the class name and make it readonly
+      const classNameInput = $('#className');
+      classNameInput.val(detectionType);
+      classNameInput.prop('readonly', true);
+
+      // Enable and reset other form fields
+      const fieldsToReset = ['ruleName', 'message', 'department', 'severity', 'frequency', 'sendTime'];
+      fieldsToReset.forEach(fieldId => {
+        const field = $(`#${fieldId}`);
+        field.val('').prop('disabled', false);
+      });
+
+      // Reset notification type checkboxes
+      $('input[name="notification_types"]').prop('checked', false);
+
+      // Set default values
+      $('#severity').val('MEDIUM');
+      $('#frequency').val('immediate');
+      $('#sendTimeContainer').hide();
+
+      // Show modal
+      modal.modal('show');
+    }
+  });
+
+  // Handle frequency change
+  $('#frequency').change(function () {
+    const sendTimeContainer = $('#sendTimeContainer');
+    sendTimeContainer.toggle($(this).val() !== 'immediate');
+  });
+</script>
+<script>
+  // Add Turkish locale definition
+  const Turkish = {
+    weekdays: {
+      shorthand: ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"],
+      longhand: ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"]
+    },
+    months: {
+      shorthand: ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"],
+      longhand: ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
+    },
+    firstDayOfWeek: 1,
+    rangeSeparator: " ile ",
+    time_24hr: true
+  };
+
+  // Update the flatpickr initialization
+  document.addEventListener('DOMContentLoaded', function () {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    const rangePicker = flatpickr("#bs-rangepicker-time", {
+      mode: 'range',
+      enableTime: true,
+      dateFormat: "d F Y H:i",
+      time_24hr: true,
+      defaultDate: [today, todayEnd],
+      maxDate: 'today',
+      locale: Turkish,
+      wrap: true,
+      allowInput: true,
+      defaultHour: 0,
+      static: true,
+      onChange: function (selectedDates, dateStr) {
+        if (selectedDates.length === 2) {
+          const startDate = selectedDates[0];
+          const endDate = selectedDates[1];
+          const formattedStart = startDate.toLocaleString('tr-TR', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          const formattedEnd = endDate.toLocaleString('tr-TR', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          this.input.value = `${formattedStart} ile ${formattedEnd}`;
+        }
+      }
+    });
+
+    // Set initial value with Turkish format
+    const formattedStart = today.toLocaleString('tr-TR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const formattedEnd = todayEnd.toLocaleString('tr-TR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  });
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Task creation toggle
+    const createTaskCheckbox = document.getElementById('createTask');
+    const taskDetailsDiv = document.getElementById('taskDetails');
+
+    createTaskCheckbox.addEventListener('change', function () {
+      taskDetailsDiv.style.display = this.checked ? 'block' : 'none';
+    });
+
+    // Notification creation toggle
+    const createNotificationCheckbox = document.getElementById('createNotification');
+    const notificationDetailsDiv = document.getElementById('notificationDetails');
+    const notificationInputs = notificationDetailsDiv.querySelectorAll('input, select, textarea');
+
+    createNotificationCheckbox.addEventListener('change', function () {
+      notificationDetailsDiv.style.display = this.checked ? 'block' : 'none';
+
+      // Enable/disable all inputs in notification section
+      notificationInputs.forEach(input => {
+        input.required = this.checked;
+        input.disabled = !this.checked;
+      });
+    });
+
+    // Frequency change handler
+    const frequencySelect = document.getElementById('frequency');
+    const sendTimeContainer = document.getElementById('sendTimeContainer');
+
+    frequencySelect.addEventListener('change', function () {
+      sendTimeContainer.style.display = this.value !== 'immediate' ? 'block' : 'none';
+    });
+  });
+</script>
+
+
+<script>
+  $('.add-notification').off('click').on('click', function (e) {
+    e.preventDefault();
+    const btn = $(this);
+    const modal = $('#ruleModal');
+    const detectionId = btn.data('detection-id');
+    const className = btn.data('class-name');
+
+    // Set values before showing modal
+    $('#detectionClassId').val(detectionId);
+    $('#className').val(className);
+    $('#detectionIdSpan').text(detectionId);
+
+    // Show modal first
+    modal.modal('show');
+
+    // Then update class name value after modal is fully shown
+    modal.on('shown.bs.modal', function () {
+      const classNameValue = $('#className').val();
+      if (classNameValue) {
+        $('.detection-class-value').text(classNameValue);
+      }
+    });
+  });
+
+  // Update saveRule click handler to use new RulesAdd model
+  $('#saveRule').click(function () {
+    debugger
+    const form = document.getElementById('ruleForm');
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+
+    const formData = {
+      detection_id: $('#detectionClassId').val(),
+      class_name: $('#className').val(),
+      rule_name: $('#ruleName').val(),
+      rule_scope: $('input[name="ruleScope"]:checked').val(),
+      department: $('#department').val(),
+
+      // Task data
+      create_task: $('#createTask').is(':checked'),
+      task_type: $('#taskType').val(),
+      task_description: $('#taskDescription').val(),
+      task_due_date: $('#taskDueDate').val(),
+
+      // Notification data
+      create_notification: $('#createNotification').is(':checked'),
+      notification_types: $('input[name="notification_types"]:checked').map(function () {
+        return $(this).val();
+      }).get(),
+      message: $('#message').val(),
+      frequency: $('#frequency').val(),
+      send_time: $('#sendTime').val() || null,
+      severity: $('#severity').val()
+    };
+
+    $.ajax({
+      url: '/api/stream/rules/',
+      method: 'POST',
+      data: JSON.stringify(formData),
+      contentType: 'application/json',
+      headers: {
+        'X-CSRFToken': $('input[name="csrfmiddlewaretoken"]').val()
+      },
+      success: function (response) {
+        $('#ruleModal').modal('hide');
+        toastr.success('Kural başarıyla kaydedildi');
+        location.reload();
+      },
+      error: function (xhr) {
+        let errorMessage = 'Bir hata oluştu';
+        try {
+          const response = xhr.responseJSON;
+          if (response && response.message) {
+            errorMessage = response.message;
+          }
+        } catch (e) {
+          console.error('Error parsing response:', e);
+        }
+        toastr.error(errorMessage);
+      }
+    });
+  });
+</script>
+
+{% endblock %}
+
+{% block content %}
+<!-- Data Container -->
+<div id="stream-data" style="display: none;" data-images='[
+      {% for image in stream_images %}
+        {
+          "id": {{ image.id }},
+          "imageUrl": "{{ image.image.url|escapejs }}",
+          "detections": [
+            {% for detection in image.detections.all %}
+              {
+                "x_min": {{ detection.x_min }},
+                "y_min": {{ detection.y_min }},
+                "x_max": {{ detection.x_max }},
+                "y_max": {{ detection.y_max }},
+                "className": "{{ detection.class_name|escapejs }}"
+              }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+          ]
+        }{% if not forloop.last %},{% endif %}
+      {% endfor %}
+     ]'>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <!-- Add filtering section -->
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="input-group">
+          <input type="text" class="form-control" id="bs-rangepicker-time" placeholder="Tarih seçin">
+          <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="ti ti-calendar"></i>
+          </button>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#" data-period="today">Bugün</a></li>
+            <li><a class="dropdown-item" href="#" data-period="week">Bu Hafta</a></li>
+            <li><a class="dropdown-item" href="#" data-period="month">Bu Ay</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <select class="form-select" id="departmentSelect">
+          <option value="">Tespit Türü Seçin</option>
+          {% for class_data in class_data %}
+          <option value="{{ class_data.Name }}">{{ class_data.Turkish }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <input type="text" class="form-control" id="searchInput" placeholder="Adres ile arama yapın...">
+      </div>
+    </div>
+
+    <!-- Table section -->
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover" id="streamImagesTable">
+        <thead>
+          <tr>
+            <th></th>
+            <th>id</th>
+            <th>Görüntü</th>
+            <th>Yakalanma Tarihi</th>
+            <th>Adres</th>
+            <th>Cihaz</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for image in stream_images %}
+          <tr class="parent-row">
+            <td>
+              <button class="btn btn-sm btn-icon btn-expand" data-bs-toggle="collapse"
+                data-bs-target="#detections-{{ image.id }}" aria-expanded="false">
+                <i class="ti ti-chevron-right"></i>
+              </button>
+            </td>
+            <td>{{ image.id }}</td>
+            <td>
+              <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#imageModal-{{ image.id }}">
+                <img src="{{ image.image.url }}" width="120" class="cursor-pointer" />
+              </a>
+              <div class="modal fade" id="imageModal-{{ image.id }}" tabindex="-1"
+                aria-labelledby="imageModalLabel-{{ image.id }}" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-xl">
+                  <div class="modal-content">
+                    <div class="modal-body" style="min-height: 70vh; padding: 0;">
+                      <div class="canvas-container" style="width: 100%; height: 100%; position: relative;">
+                        <canvas id="canvas-{{ image.id }}"></canvas>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td>{{ image.timestamp|date:"d.m.Y H:i:s" }}</td>
+            <td>{{ image.fulladdress }}</td>
+            <td>{{ image.deviceuuid }}</td>
+          </tr>
+          <tr class="collapse" id="detections-{{ image.id }}">
+            <td colspan="7">
+              <div class="p-3">
+                <h6 class="mb-3">Tespitler</h6>
+                <table class="table mb-0">
+                  <thead>
+                    <tr>
+                      <th>Tespit Türü</th>
+                      <th></th>
+                      <th>Görev Durumu</th>
+                      <th>Gönderim Türü</th>
+                      <th>Bildirim Durumu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for detection in image.detections.all %}
+                    <tr>
+                      <td>{{ detection.class_name }}</td>
+                      <td>
+                        {% if detection.notification or notification_types|has_class_name:detection.class_name %}
+                        <button type="button" class="btn btn-sm btn-outline-primary view-notification"
+                          data-detection-id="{{ detection.id }}" data-class-name="{{ detection.class_name }}"
+                          data-notification-type="{{ notification_rules|get_item:detection.class_name|get_item:'type' }}"
+                          data-notification-title="{{ notification_rules|get_item:detection.class_name|get_item:'title' }}"
+                          data-notification-message="{{ notification_rules|get_item:detection.class_name|get_item:'message' }}"
+                          data-notification-department="{{ notification_rules|get_item:detection.class_name|get_item:'department' }}">
+                          <i class="fas fa-bell"></i> Kuralı Görüntüle
+                        </button>
+                        {% else %}
+                        <button type="button" class="btn btn-sm btn-outline-primary add-notification"
+                          data-detection-id="{{ detection.id }}" data-class-name="{{ detection.class_name }}">
+                          <i class="fas fa-plus"></i> Kural Ekle
+                        </button>
+                        {% endif %}
+                      </td>
+                      <td>
+
+                      <th></th>
+                      <td>Gönderildi</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Enhanced pagination -->
+    <div class="d-flex justify-content-between align-items-center border-top pt-3 pb-2">
+      <div class="d-flex align-items-center text-muted">
+        <select class="form-select form-select-sm me-2" style="width: 80px" id="pageSizeSelect">
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        <span>kayıt gösteriliyor</span>
+      </div>
+
+      <div class="d-flex align-items-center">
+        <span class="text-muted me-3">
+          Toplam <strong>{{ stream_images.paginator.count }}</strong> kayıt,
+          Sayfa <strong>{{ stream_images.number }}/{{ stream_images.paginator.num_pages }}</strong>
+        </span>
+
+        <nav aria-label="Sayfalama">
+          <ul class="pagination pagination-sm mb-0">
+            {% if stream_images.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page=1" title="İlk Sayfa">
+                <i class="ti ti-chevrons-left"></i>
+              </a>
+            </li>
+            <li class="page-item">
+              <a class="page-link" href="?page={{ stream_images.previous_page_number }}">
+                <i class="ti ti-chevron-left"></i>
+              </a>
+            </li>
+            {% endif %}
+
+            {% for num in stream_images.paginator.page_range %}
+            {% if stream_images.number == num %}
+            <li class="page-item active">
+              <span class="page-link">{{ num }}</span>
+            </li>
+            {% elif num > stream_images.number|add:'-3' and num < stream_images.number|add:'3' %} <li class="page-item">
+              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+              </li>
+              {% endif %}
+              {% endfor %}
+
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Add this modal for rule management -->
+<div class="modal fade" id="ruleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header border-bottom">
+        <h5 class="modal-title d-flex align-items-center">
+          <i class="ti ti-settings me-2"></i>
+          Kural Ekle
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="ruleForm" class="needs-validation" novalidate>
+          {% csrf_token %}
+          <input type="hidden" id="ruleId">
+          <input type="hidden" id="detectionClassId">
+
+          <div class="mb-3">
+            <div class="row g-3">
+              <div class="col-md-12">
+                <label class="form-label" for="className">Tespit Sınıfı</label>
+                <input type="text" class="form-control" id="className" readonly>
+              </div>
+              <div class="col-md-12">
+                <label class="form-label" for="ruleName">Kural Adı <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="ruleName" required>
+              </div>
+              <!-- Add rule scope selection -->
+              <div class="col-md-6">
+                <label class="form-label">Kural Kapsamı</label>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="ruleScope" id="ruleScopeSingle" value="single"
+                    checked>
+                  <label class="form-check-label" for="ruleScopeSingle">
+                    Sadece Bu Tespit İçin (#<span id="detectionIdSpan"></span>)
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="ruleScope" id="ruleScopeAll" value="all">
+                  <label class="form-check-label" for="ruleScopeAll">
+                    Tüm "<span class="detection-class-value"></span>" Tespitleri İçin
+                  </label>
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" for="department">Departman <span class="text-danger">*</span></label>
+                <select class="form-select" id="department" required>
+                  <option value="">Departman Seçin</option>
+                  {% for dept in departments %}
+                  <option value="{{ dept.id }}">{{ dept.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Görev Ayarları -->
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="card-title mb-0">Görev Ayarları</h6>
+              <br>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="createTask" name="createTask">
+                <label class="form-check-label" for="createTask">Görev Oluştur</label>
+              </div>
+            </div>
+            <div id="taskDetails" style="display: none;">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label" for="taskType">Görev Tipi</label>
+                  <select class="form-select" id="taskType">
+                    <option value="">Görev Tipi Seçin</option>
+                    <option value="inspection">Saha Denetimi</option>
+                    <option value="investigation">İnceleme</option>
+                    <option value="enforcement">Yaptırım</option>
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label" for="taskDescription">Görev Açıklaması</label>
+                  <textarea class="form-control" id="taskDescription" rows="3"></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" for="taskDueDate">Son Tarih</label>
+                  <div class="input-group">
+                    <input type="text" id="taskDueDate" class="form-control flatpickr-input">
+                    <span class="input-group-text">
+                      <i class="ti ti-calendar"></i>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bildirim Ayarları -->
+          <div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="card-title mb-0">Bildirim Ayarları</h6>
+              <br>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="createNotification" name="createNotification">
+                <label class="form-check-label" for="createNotification">Bildirim Oluştur</label>
+              </div>
+            </div>
+            <div id="notificationDetails" style="display: none;">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label">Bildirim Türleri</label>
+                  <div class="notification-types-container p-3 border rounded">
+                    {% for type in notification_types %}
+                    <div class="form-check mb-2">
+                      <input class="form-check-input" type="checkbox" name="notification_types" value="{{ type.id }}"
+                        id="type_{{ type.id }}">
+                      <label class="form-check-label" for="type_{{ type.id }}">
+                        {{ type.name }}
+                      </label>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label" for="message">Bildirim Mesajı</label>
+                  <textarea class="form-control" id="message" rows="3"></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" for="frequency">Gönderim Sıklığı</label>
+                  <select class="form-select" id="frequency">
+                    <option value="immediate">Anında</option>
+                    <option value="daily">Günlük</option>
+                    <option value="weekly">Haftalık</option>
+                    <option value="monthly">Aylık</option>
+                  </select>
+                </div>
+                <div class="col-md-6" id="sendTimeContainer" style="display: none;">
+                  <label class="form-label" for="sendTime">Gönderim Saati</label>
+                  <input type="time" class="form-control" id="sendTime">
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-top">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+        <button type="button" class="btn btn-primary" id="saveRule">
+          <i class="ti ti-device-floppy me-1"></i> Kaydet
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Notification Modals -->
+{{ notification_modals|safe }}
+
+<!-- Add the modal templates -->
+
+
+<div class="modal fade" id="notificationModalView" tabindex="-1">
+  <!-- Your notification view modal content -->
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  $(document).ready(function () {
+    // Initialize Select2 for address selection
+    $('#addressSelect').select2({
+      placeholder: 'Adres seçin veya arama yapın',
+      allowClear: true,
+      minimumInputLength: 2,
+      ajax: {
+        url: '/api/stream/recent-addresses/',
+        dataType: 'json',
+        delay: 250,
+        data: function (params) {
+          return {
+            search: params.term
+          };
+        },
+        processResults: function (data) {
+          return {
+            results: (data.suggestions || []).map(function (item) {
+              return {
+                id: item.value,
+                text: formatAddressText(item),
+                area: item.area,
+                count: item.count,
+                last_seen: item.last_seen
+              };
+            })
+          };
+        },
+        cache: true
+      },
+      templateResult: formatAddressOption,
+      templateSelection: formatAddressSelection,
+      escapeMarkup: function (markup) {
+        return markup;
+      }
+    });
+
+    function formatAddressText(item) {
+      return `
+            ${item.label}
+            <span class="badge bg-secondary float-end">${item.count} tespit</span>
+        `;
+    }
+
+    function formatAddressOption(address) {
+      if (!address.id) return address.text;
+      return $(`
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="suggestion-area fw-bold">${address.area}</div>
+                    <div class="suggestion-address small text-muted">${address.id}</div>
+                </div>
+                <div class="ms-2">
+                    <span class="badge bg-secondary">${address.count} tespit</span>
+                    <div class="small text-muted">Son: ${address.last_seen}</div>
+                </div>
+            </div>
+        `);
+    }
+
+    function formatAddressSelection(address) {
+      if (!address.id) return address.text;
+      return address.id;
+    }
+  });
+</script>
+
+
+<script>
+  $(document).ready(function () {
+    // Initialize Select2 for address autocomplete
+    $('#addressSelect').select2({
+      placeholder: 'Adres seçin veya arama yapın',
+      allowClear: true,
+      minimumInputLength: 2,
+      ajax: {
+        url: '/api/stream/address-suggestions/',
+        dataType: 'json',
+        delay: 250,
+        data: function (params) {
+          return {
+            query: params.term
+          };
+        },
+        processResults: function (data) {
+          return {
+            results: data.suggestions.map(function (item) {
+              return {
+                id: item.value,
+                text: item.label,
+                area: item.area
+              };
+            })
+          };
+        },
+        cache: true
+      },
+      templateResult: formatAddress,
+      templateSelection: formatAddressSelection
+    });
+
+    // Format address in dropdown
+    function formatAddress(address) {
+      if (!address.id) return address.text;
+      return $(`<div>
+            <strong>${address.area}</strong><br>
+            <small>${address.text}</small>
+        </div>`);
+    }
+
+    // Format selected address
+    function formatAddressSelection(address) {
+      return address.text || address.id;
+    }
+
+    // Filter button click handler
+    $('#filterButton').click(function () {
+      const dateRange = $('#bs-rangepicker-time').val();
+      const address = $('#addressSelect').val();
+      const detectionTypes = $('#detectionType').val();
+
+      // Parse date range
+      let startDate, endDate;
+      if (dateRange) {
+        const dates = dateRange.split(' ile ');
+        startDate = moment(dates[0], 'D MMMM YYYY HH:mm').format('YYYY-MM-DDTHH:mm:ss');
+        endDate = moment(dates[1], 'D MMMM YYYY HH:mm').format('YYYY-MM-DDTHH:mm:ss');
+      }
+
+      // Create filter parameters
+      const params = new URLSearchParams();
+      if (startDate && endDate) {
+        params.append('start_date', startDate);
+        params.append('end_date', endDate);
+      }
+      if (address) {
+        params.append('address', address);
+      }
+      if (detectionTypes) {
+        detectionTypes.split(',').forEach(type => {
+          params.append('detection_types[]', type.trim());
+        });
+      }
+
+      // Reload with filters
+      window.location.href = `${window.location.pathname}?${params.toString()}`;
+    });
+  });
+</script>
+
+{% endblock %}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Safely initialize flatpickr
+    const datePickerElement = document.querySelector('#bs-rangepicker-time');
+    if (!datePickerElement) {
+      console.error('Element with id "bs-rangepicker-time" not found');
+      return;
+    }
+
+    try {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+      flatpickr(datePickerElement, {
+        mode: 'range',
+        enableTime: true,
+        dateFormat: "d F Y H:i",
+        defaultDate: [today, todayEnd],
+        maxDate: 'today',
+        locale: Turkish,
+        onChange: function (selectedDates, dateStr) {
+          if (selectedDates.length === 2) {
+            const startDate = selectedDates[0];
+            const endDate = selectedDates[1];
+
+            const formattedStart = startDate.toLocaleString('tr-TR', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+
+            const formattedEnd = endDate.toLocaleString('tr-TR', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+
+            datePickerElement.value = `${formattedStart} ile ${formattedEnd}`;
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error initializing flatpickr:', error);
+    }
+  });
+</script>
+<script>
+  // Remove any duplicate flatpickr initialization code and use this single initialization
+  document.addEventListener('DOMContentLoaded', function () {
+    // Define Turkish locale first
+    const Turkish = {
+      weekdays: {
+        shorthand: ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"],
+        longhand: ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"]
+      },
+      months: {
+        shorthand: ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"],
+        longhand: ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
+      },
+      firstDayOfWeek: 1,
+      rangeSeparator: " ile ",
+      time_24hr: true
+    };
+
+    // Single flatpickr initialization
+    const datePickerElement = document.querySelector('#bs-rangepicker-time');
+    if (datePickerElement) {
+      try {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+        const picker = flatpickr(datePickerElement, {
+          mode: 'range',
+          enableTime: true,
+          dateFormat: "d F Y H:i",
+          defaultDate: [today, todayEnd],
+          maxDate: 'today',
+          locale: Turkish,
+          allowInput: true,
+          static: true,
+          onChange: function (selectedDates, dateStr) {
+            if (selectedDates.length === 2) {
+              const startDate = selectedDates[0];
+              const endDate = selectedDates[1];
+
+              const formattedStart = startDate.toLocaleString('tr-TR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+
+              const formattedEnd = endDate.toLocaleString('tr-TR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+
+              datePickerElement.value = `${formattedStart} ile ${formattedEnd}`;
+            }
+          }
+        });
+
+        // Store the picker instance
+        datePickerElement._flatpickr = picker;
+
+        // Set initial value
+        const formattedStart = today.toLocaleString('tr-TR', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        const formattedEnd = todayEnd.toLocaleString('tr-TR', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        datePickerElement.value = `${formattedStart} ile ${formattedEnd}`;
+      } catch (error) {
+        console.error('Error initializing flatpickr:', error);
+      }
+    }
+  });
+</script>
+
+<script>
+  $(document).ready(function () {
+    // Global modal cleanup function
+    function cleanupModal() {
+      // Remove backdrop
+      $('.modal-backdrop').remove();
+
+      // Remove modal classes from body
+      $('body').removeClass('modal-open');
+      $('body').removeAttr('style');
+
+      // Remove show classes from all elements
+      $('.modal').removeClass('show');
+      $('.modal').css('display', 'none');
+      $('[class*="show"]').removeClass('show');
+
+      // Reset any expanded elements
+      $('.collapse.show').removeClass('show');
+
+      // Remove aria-modal and aria-hidden attributes
+      $('.modal').removeAttr('aria-modal');
+      $('.modal').attr('aria-hidden', 'true');
+    }
+
+    // Cleanup on modal hidden event
+    $('.modal').on('hidden.bs.modal', function () {
+      cleanupModal();
+    });
+
+    // Cleanup on modal close button click
+    $('.btn-close, [data-bs-dismiss="modal"]').on('click', function () {
+      cleanupModal();
+    });
+
+    // Cleanup on ESC key
+    $(document).on('keydown', function (e) {
+      if (e.key === 'Escape') {
+        cleanupModal();
+      }
+    });
+  });
+</script>
+
+$(document).ready(function() {
+// Enhanced modal cleanup function
+function cleanupAllModals() {
+// Remove all modal backdrops
+$('.modal-backdrop').remove();
+
+// Remove modal-open class and inline styles from body
+$('body').removeClass('modal-open').removeAttr('style');
+
+// Reset all modals
+$('body').each(function() {
+$(this)
+.removeClass('show')
+.css('display', 'none')
+.removeAttr('aria-modal')
+.attr('aria-hidden', 'true');
+});
+
+// Remove any lingering backdrop classes
+$('body > .modal-backdrop').remove();
+$('body > [class*="modal-backdrop"]').remove();
+
+// Reset any expanded/collapsed elements
+$('.collapse.show').removeClass('show');
+
+// Clear any inline padding
+$('body').css('padding-right', '');
+}
+
+// Attach cleanup to multiple events
+$(document)
+.on('hidden.bs.modal', '.modal', cleanupAllModals)
+.on('click', '[data-bs-dismiss="modal"]', cleanupAllModals)
+.on('keydown', function(e) {
+if (e.key === 'Escape') cleanupAllModals();
+});
+
+// Cleanup on any bootstrap modal hide event
+$('.modal').on('hide.bs.modal', cleanupAllModals);
+
+// Override Bootstrap's modal hide behavior
+const originalHide = bootstrap.Modal.prototype.hide;
+if (originalHide) {
+bootstrap.Modal.prototype.hide = function() {
+originalHide.call(this);
+cleanupAllModals();
+};
+}
+});
+</script>
+
+<script>
+  $(document).ready(function () {
+    // Debounce function to limit how often the filter runs
+    function debounce(func, wait) {
+      let timeout;
+      return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+      };
+    }
+
+
+    // Debounced version of applyFilters for text input
+    const debouncedApplyFilters = debounce(applyFilters, 500);
+
+    // Add change event listeners to other filter inputs
+    $('#bs-rangepicker-time').on('change', applyFilters);
+    $('#searchInput').on('input', debouncedApplyFilters);
+
+    // Handle date range quick select buttons
+    $('.dropdown-item[data-period]').on('click', function (e) {
+      e.preventDefault();
+      const period = $(this).data('period');
+      setDateRange(period);
+    });
+  });
+</script>
+
+<script>
+  $(document).ready(function () {
+    // Function to filter table rows by class_name
+    function filterTableByClassName(className) {
+      // Show all rows initially
+      $('.parent-row').each(function () {
+        const $parentRow = $(this);
+        const $detectionRow = $parentRow.next('.collapse');
+        const detectionExists = $detectionRow.find('table tbody tr').toArray()
+          .some(tr => $(tr).find('td:first').text().trim() === className);
+
+        if (!className || detectionExists) {
+          $parentRow.show();
+          if (detectionExists) {
+            // Show only matching detections in the expanded section
+            $detectionRow.find('table tbody tr').each(function () {
+              const rowClassName = $(this).find('td:first').text().trim();
+              $(this).toggle(rowClassName === className || !className);
+            });
+          }
+        } else {
+          $parentRow.hide();
+        }
+      });
+    }
+  });
+</script>
+<script>
+  $('.add-notification').off('click').on('click', function (e) {
+    e.preventDefault();
+    const btn = $(this);
+    const modal = $('#ruleModal');
+    const detectionId = btn.data('detection-id');
+    const className = btn.data('class-name');
+
+    // Set values before showing modal
+    if (detectionId) $('#detectionClassId').val(detectionId);
+    if (className) {
+      $('#className').val(className);
+      $('#detectionIdSpan').text(detectionId);
+    }
+
+    // Show modal and update class name after modal is shown
+    modal.modal('show').one('shown.bs.modal', function () {
+      const classNameValue = $('#className').val();
+      if (classNameValue) {
+        $('.detection-class-value').text(classNameValue);
+      }
+    });
+  });
+</script>

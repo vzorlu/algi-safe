@@ -1,0 +1,440 @@
+{% extends layout_path %}
+
+{% load i18n %}
+
+{% block content %}
+
+<div class="container">
+    <!-- Web Call Interface -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Web Görüşme</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+              <button id="testAgentBtn" class="btn btn-primary mt-3">
+                Test your agent
+            </button>
+            <div id="testResponse" class="d-none">
+                <div class="alert alert-success">
+                    <p>Test Yanıtı:</p>
+                    <p id="testResponseText"></p>
+                </div>
+            </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="userName" class="form-label">Adınız</label>
+                        <input type="text" class="form-control" id="userName" placeholder="Adınızı giriniz">
+                    </div>
+                    <button id="startWebCallBtn" class="btn btn-primary">
+                        <i class="ti ti-phone me-2"></i>Görüşme Başlat
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <div id="callInterface" class="d-none">
+                        <div class="alert alert-success">
+                            <h6>Görüşme Hazır!</h6>
+                            <p class="mb-2">Görüşme ID: <span id="callId"></span></p>
+                            <div class="d-flex align-items-center gap-2">
+                                <button id="joinCallBtn" class="btn btn-success btn-sm">
+                                    <i class="ti ti-microphone me-1"></i>Görüşmeye Katıl
+                                </button>
+                                <button id="endCallBtn" class="btn btn-danger btn-sm d-none">
+                                    <i class="ti ti-phone-off me-1"></i>Görüşmeyi Sonlandır
+                                </button>
+                            </div>
+                        </div>
+                        <div id="callStatus" class="alert alert-info mt-3 d-none">
+                            Görüşme durumu burada görüntülenecek...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h4>Gelen Çağrılar</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Çağrı Türü</th>
+                <th>Çağrı ID</th>
+                <th>Durum</th>
+                <th>Süre (sn)</th>
+                <th>İşlemler</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for call in call_responses %}
+            <tr>
+                <td>{{ call.call_type }}</td>
+                <td>{{ call.call_id|slice:":4" }}</td>
+                <td>{{ call.call_status }}</td>
+                <td>{{ call.call_cost.total_duration_seconds }}</td>
+                <td>
+                    <button class="btn btn-primary btn-sm" onclick="fetchCallDetails('{{ call.call_id }}')">
+                        Detay
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="modal fade" id="callModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Çağrı Detayları</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-12">
+                            <h6>Konuşma Kaydı</h6>
+                            <audio id="audioPlayer" controls style="width:100%">
+                                <source src="" type="audio/wav">
+                            </audio>
+                        </div>
+                        <div class="col-12 mt-3">
+                            <h6>Görüşme Metni</h6>
+                            <div id="transcript" class="border p-3"></div>
+                        </div>
+
+                        <div class="col-12 mt-3">
+                          <h6>Konuşma Duygusu</h6>
+                          <div id="emotions" class="border p-1"></div>
+                      </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Popup konumlandırma */
+.mapboxgl-popup {
+    transform: none !important;
+}
+
+.mapboxgl-popup-content {
+    min-width: 300px;
+    position: relative;
+    margin-left: 15px; /* popup ile marker arası mesafe */
+}
+
+/* Ok işareti konumlandırma */
+.mapboxgl-popup-tip {
+    position: absolute;
+    left: -10px; /* ok işaretini sola kaydır */
+    top: 50%; /* dikey ortalama */
+    transform: translateY(-50%) rotate(90deg) !important; /* ok işaretini sağa çevir */
+    border-top-color: white !important;
+    border-bottom: none;
+    margin: 0;
+}
+
+/* Popup anchor pozisyonları */
+.mapboxgl-popup-anchor-left .mapboxgl-popup-content {
+    margin-left: 15px;
+}
+
+.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+    left: -10px;
+}
+</style>
+
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+<script>
+document.getElementById('startWebCallBtn').addEventListener('click', function() {
+    const userName = document.getElementById('userName').value || 'Misafir';
+    const statusDiv = document.getElementById('callStatus');
+
+    statusDiv.classList.remove('d-none');
+    statusDiv.innerHTML = `
+        <div class="alert alert-info">
+            <i class="ti ti-loader me-2"></i>Görüşme başlatılıyor...
+        </div>
+    `;
+
+    fetch('/start-web-call/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ user_name: userName })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'API error: ' + response.status);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        //console.log('Web call response:', data); // Debug log
+
+        if (data.success && data.web_call_url) {
+            // Store URL in window object
+            window.webCallUrl = data.web_call_url;
+
+            // Update UI
+            document.getElementById('callId').textContent = data.call_id;
+            document.getElementById('callInterface').classList.remove('d-none');
+            document.getElementById('startWebCallBtn').classList.add('d-none');
+            document.getElementById('joinCallBtn').classList.remove('d-none');
+
+            // Show status
+            document.getElementById('callStatus').classList.remove('d-none');
+            document.getElementById('callStatus').innerHTML = `
+                <div class="alert alert-success">
+                    Görüşme hazır! URL: ${data.web_call_url}
+                </div>
+            `;
+        } else {
+            throw new Error(data.error || 'Web call URL alınamadı');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        statusDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="ti ti-alert-circle me-2"></i>
+                ${error.message || 'Görüşme başlatılamadı. Lütfen daha sonra tekrar deneyin.'}
+            </div>
+        `;
+    });
+});
+
+// Join call button handler
+document.getElementById('joinCallBtn').addEventListener('click', async function() {
+    if (window.webCallUrl) {
+        try {
+            // Request microphone access
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
+                video: false
+            });
+
+            // Store stream reference
+            window.localStream = stream;
+
+            // Open call in a new window with specific features
+            const webCallWindow = window.open(
+                window.webCallUrl,
+                'RetellWebCall',
+                'width=800,height=600,menubar=no,toolbar=no,location=yes,status=yes,resizable=yes'
+            );
+
+            if (webCallWindow) {
+                // Show end call button
+                document.getElementById('joinCallBtn').classList.add('d-none');
+                document.getElementById('endCallBtn').classList.remove('d-none');
+
+                // Update status
+                const statusDiv = document.getElementById('callStatus');
+                statusDiv.classList.remove('d-none');
+                statusDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <p><i class="ti ti-microphone me-2"></i>Mikrofon bağlandı</p>
+                        <p>Görüşme ID: ${document.getElementById('callId').textContent}</p>
+                        <p><small>Yeni pencerede görüşme başlatılıyor...</small></p>
+                    </div>
+                `;
+
+                // Monitor call window
+                const checkWindow = setInterval(() => {
+                    if (webCallWindow.closed) {
+                        clearInterval(checkWindow);
+                        if (window.localStream) {
+                            window.localStream.getTracks().forEach(track => track.stop());
+                            window.localStream = null;
+                        }
+                        // Reset UI
+                        document.getElementById('endCallBtn').click();
+                    }
+                }, 1000);
+
+                // Focus the call window
+                webCallWindow.focus();
+
+                // Automatically reload the call list after 5 seconds
+                setTimeout(() => {
+                    location.reload();
+                }, 5000);
+            } else {
+                throw new Error('Pop-up penceresi açılamadı. Pop-up engelleyiciyi kontrol edin.');
+            }
+        } catch (err) {
+            console.error('Microphone Error:', err);
+            const statusDiv = document.getElementById('callStatus');
+            statusDiv.classList.remove('d-none');
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="ti ti-alert-circle me-2"></i>Hata: ${err.message || 'Mikrofon erişimi sağlanamadı'}
+                </div>
+            `;
+        }
+    } else {
+        console.error('Web call URL not found');
+        alert('Görüşme URL\'i bulunamadı. Lütfen sayfayı yenileyip tekrar deneyin.');
+    }
+});
+
+// End call button handler güncelleniyor
+document.getElementById('endCallBtn').addEventListener('click', function() {
+    // Reset interface
+    document.getElementById('callInterface').classList.add('d-none');
+    document.getElementById('startWebCallBtn').classList.remove('d-none');
+    document.getElementById('endCallBtn').classList.add('d-none');
+
+    const statusDiv = document.getElementById('callStatus');
+    statusDiv.classList.add('d-none');
+    statusDiv.innerHTML = '';
+
+    // Clear stored URL
+    window.webCallUrl = null;
+
+    // Eğer aktif bir mikrofon varsa kapat
+    if (window.localStream) {
+        window.localStream.getTracks().forEach(track => track.stop());
+        window.localStream = null;
+    }
+});
+
+// CSRF Token helper function
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function fetchCallDetails(callId) {
+    $.ajax({
+        url: '/get_call_details/' + callId + '/',
+        method: 'GET',
+        success: function(data) {
+          debugger;
+            $('#audioPlayer').attr('src', data.recording_url);
+            $('#transcript').html(data.transcript.replace(/\n/g, '<br>'));
+            $('#analysis').html(data.call_analysis.call_summary);
+            $('#emotions').html(data.call_analysis.user_sentiment);
+
+            $('#callModal').modal('show');
+        },
+        error: function(xhr, status, error) {
+            alert('Detaylar yüklenirken hata oluştu: ' + error);
+        }
+    });
+}
+
+// Reset audio player when modal is closed
+$('#callModal').on('hidden.bs.modal', function () {
+    $('#audioPlayer')[0].pause();
+    $('#audioPlayer')[0].currentTime = 0;
+});
+
+
+
+
+document.getElementById('testAgentBtn').addEventListener('click', async function() {
+    document.getElementById('testResponse').innerHTML = `
+        <div class="alert alert-info">
+            <p>Test yapılıyor...</p>
+        </div>
+    `;
+    document.getElementById('testResponse').classList.remove('d-none');
+
+    try {
+        const response = await fetch('/start-web-call/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ user_name: 'Test User' })
+        });
+        const data = await response.json();
+        if (data.success) {
+            const { call_id, access_token } = data;
+            const wsUrl = `ws://api.retellai.com/websockets?token=${access_token}&call_id=${call_id}`;
+
+            const ws = new WebSocket(wsUrl);
+
+            ws.onopen = function() {
+                const testQuery = 'Hava durumu nedir?'; // Predefined test query
+                ws.send(testQuery);
+            };
+
+            ws.onmessage = function(event) {
+                const response = event.data;
+                document.getElementById('testResponse').innerHTML = `
+                    <div class="alert alert-success">
+                        <p>Test Yanıtı:</p>
+                        <p>${response}</p>
+                    </div>
+                `;
+            };
+
+            ws.onclose = function() {
+                //console.log('Connection closed');
+            };
+
+            ws.onerror = function(error) {
+                console.error('Error:', error);
+                document.getElementById('testResponse').innerHTML = `
+                    <div class="alert alert-danger">
+                        <p>Test sırasında hata: ${error.message}</p>
+                    </div>
+                `;
+            };
+        } else {
+            throw new Error(data.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('testResponse').innerHTML = `
+            <div class="alert alert-danger">
+                <p>Test sırasında hata: ${error.message}</p>
+            </div>
+        `;
+    }
+});
+
+// Popup oluşturma
+const popup = new mapboxgl.Popup({
+    offset: [15, 0],  // [x, y] - marker'dan uzaklık
+    anchor: 'left',   // popup'ı soldan hizala
+    closeButton: false,
+    closeOnClick: true
+}).setHTML(popupHTML);
+
+// Marker oluşturma
+const marker = new mapboxgl.Marker({
+    element: markerElement
+})
+.setLngLat(coordinates)
+.setPopup(popup)
+.addTo(map);
+
+</script>
+
+{% endblock %}

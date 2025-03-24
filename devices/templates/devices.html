@@ -1,0 +1,279 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}DataTables - Devices{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/datatables-bs5/datatables.bootstrap5.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/datatables-responsive-bs5/responsive.bootstrap5.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/datatables-checkboxes-jquery/datatables.checkboxes.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/datatables-buttons-bs5/buttons.bootstrap5.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/flatpickr/flatpickr.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/datatables-rowgroup-bs5/rowgroup.bootstrap5.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/@form-validation/form-validation.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/datatables-bs5/datatables-bootstrap5.js' %}"></script>
+<script src="{% static 'vendor/libs/moment/moment.js' %}"></script>
+<script src="{% static 'vendor/libs/flatpickr/flatpickr.js' %}"></script>
+<script src="{% static 'vendor/libs/@form-validation/popular.js' %}"></script>
+<script src="{% static 'vendor/libs/@form-validation/bootstrap5.js' %}"></script>
+<script src="{% static 'vendor/libs/@form-validation/auto-focus.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+<script>
+  $(document).ready(function () {
+    var dt_basic = $('.datatables-basic').DataTable({
+      ajax: {
+          url: '/devices/device_list/',
+          dataSrc: ''
+      },
+      columns: [
+          { data: 'name', title: 'Device Name' },
+          { data: 'type', title: 'Type' },
+          { data: 'infrastructure', title: 'Infrastructure' },
+          { data: 'operating_system', title: 'Operating System' },
+          { data: 'description', title: 'Description' }
+      ],
+      responsive: true,
+      language: {
+          url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Turkish.json',
+      },
+    });
+
+    // Form Validation and Submission
+    $('#form-add-new-record').on('submit', function (e) {
+      e.preventDefault();
+
+      var form = $(this);
+      var formData = form.serialize();
+
+      $.ajax({
+          url: '/devices/add/',  // Cihaz ekleme view URL
+          method: 'POST',
+          data: formData,
+          success: function (response) {
+              dt_basic.ajax.reload();  // DataTable'ı yeniden yükle
+              $('#add-new-record').offcanvas('hide');  // Offcanvas'ı kapat
+              form[0].reset();  // Formu sıfırla
+
+              if (response.license_key) {
+                  // Lisans Anahtarını modal içine yerleştir
+                  $('#licenseKey').text(response.license_key);
+
+                  // Modal'ı aç
+                  $('#basicModal').modal('show');
+              }
+          },
+          error: function (xhr, status, error) {
+              //console.log(xhr.responseText);
+              alert('An error occurred: ' + xhr.responseText);
+          }
+      });
+    });
+
+    // Lisans Anahtarını Kopyala Butonu
+    $('#copyLicenseKeyBtn').on('click', function() {
+      var licenseKey = $('#licenseKey').text();  // Lisans anahtarını al
+
+      // Lisans anahtarını kopyalamak için navigator.clipboard kullan
+      navigator.clipboard.writeText(licenseKey).then(function() {
+        // Başarılı olursa buton metnini "Lisans Anahtarı kopyalandı" olarak değiştir
+        $('#copyLicenseKeyBtn').text("Lisans Anahtarı kopyalandı");
+      }).catch(function(error) {
+        console.error('Kopyalama başarısız oldu:', error);
+      });
+    });
+    $('.datatables-basic tbody').on('click', 'tr', function () {
+      var data = dt_basic.row(this).data();  // Tıklanan satırın verilerini al
+      if (data) {
+        // Modal içeriğini güncelle
+        $('#editDeviceModal').find('.modal-title').text(data.name);
+        $('#editDeviceModal').find('#editDeviceName').val(data.name);
+        $('#editDeviceModal').find('#editDeviceType').val(data.type);
+        $('#editDeviceModal').find('#editDeviceInfrastructure').val(data.infrastructure);
+        $('#editDeviceModal').find('#editDeviceOS').val(data.operating_system);
+        $('#editDeviceModal').find('#editDeviceDescription').val(data.description);
+
+        // Modal'ı göster
+        $('#editDeviceModal').modal('show');
+
+        // Edit butonuna tıklayınca
+        $('#saveChangesBtn').off('click').on('click', function () {
+          // İlgili cihazı düzenleme işlemi burada yapılabilir
+          alert("Device updated!");
+        });
+
+        // Delete butonuna tıklayınca
+        $('#deleteDeviceBtn').off('click').on('click', function () {
+          // Cihaz silme işlemi burada yapılabilir
+          if (confirm("Are you sure you want to delete this device?")) {
+            alert("Device deleted!");
+          }
+        });
+      }
+    });
+  });
+</script>
+
+
+{% endblock page_js %}
+
+{% block content %}
+<!-- Add New Device Button -->
+<div class="d-flex justify-content-end mb-3">
+  <button type="button" class="btn btn-primary" data-bs-toggle="offcanvas" data-bs-target="#add-new-record" aria-controls="add-new-record">
+    <i class="ti ti-plus me-1"></i> Add New Device
+  </button>
+</div>
+
+<!-- DataTable with Devices -->
+<div class="card">
+  <div class="card-datatable table-responsive pt-0">
+    <table class="datatables-basic table">
+      <thead>
+        <tr>
+          <th>Device Name</th>
+          <th>Type</th>
+          <th>Infrastructure</th>
+          <th>Operating System</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+    </table>
+  </div>
+</div>
+
+<!-- Modal to add new device -->
+<div class="offcanvas offcanvas-end" id="add-new-record" tabindex="-1" aria-labelledby="addNewRecordLabel">
+  <div class="offcanvas-header border-bottom">
+    <h5 class="offcanvas-title" id="addNewRecordLabel">New Device</h5>
+    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body flex-grow-1">
+    <form id="form-add-new-record" method="POST" action="/devices/add/" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="col-sm-12">
+        <label class="form-label" for="basicFullname">Name</label>
+        <div class="input-group input-group-merge">
+          <span id="basicFullname2" class="input-group-text"><i class="ti ti-device-desktop"></i></span>
+          <input type="text" id="basicFullname" class="form-control dt-full-name" name="name" placeholder="Device Name" required />
+        </div>
+      </div>
+      <div class="col-sm-12">
+        <label class="form-label" for="basicType">Type</label>
+        <select class="form-select" id="basicType" name="type" required>
+          <option value="">Select Type</option>
+          <option value="NVIDIA_GPU">NVIDIA GPU</option>
+          <option value="INTEL_CPU">Intel CPU</option>
+          <option value="CPU">CPU</option>
+          <option value="JETSON">Jetson</option>
+        </select>
+      </div>
+      <div class="col-sm-12">
+        <label class="form-label" for="basicInfrastructure">Infrastructure</label>
+        <select class="form-select" id="basicInfrastructure" name="infrastructure" required>
+          <option value="">Select Infrastructure</option>
+          <option value="ON_PREMISE">On-Premise</option>
+          <option value="CLOUD">Cloud</option>
+        </select>
+      </div>
+      <div class="col-sm-12">
+        <label class="form-label" for="basicOS">Operating System</label>
+        <select class="form-select" id="basicOS" name="operating_system" required>
+          <option value="">Select OS</option>
+          <option value="UBUNTU">Ubuntu</option>
+          <option value="WINDOWS">Windows</option>
+        </select>
+      </div>
+      <div class="col-sm-12">
+        <label class="form-label" for="basicDescription">Description</label>
+        <textarea id="basicDescription" name="description" class="form-control dt-description" placeholder="Device Description" required></textarea>
+      </div>
+      <div class="col-sm-12 d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary data-submit me-sm-4 me-1">Submit</button>
+        <button type="reset" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="basicModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel1">Device Added Successfully</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Lisans Anahtarı Gösterileceği Alan -->
+        <p id="licenseKeyText">Lisans Anahtarı: <strong id="licenseKey"></strong></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Kapat</button>
+        <button type="button" class="btn btn-primary" id="copyLicenseKeyBtn">Lisans Anahtarını Kopyala</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Editing Device -->
+<div class="modal fade" id="editDeviceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editDeviceModalLabel">Edit Device</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editDeviceForm">
+          <div class="col-sm-12 mb-3">
+            <label for="editDeviceName" class="form-label">Device Name</label>
+            <input type="text" id="editDeviceName" class="form-control" placeholder="Device Name">
+          </div>
+          <div class="col-sm-12 mb-3">
+            <label for="editDeviceType" class="form-label">Device Type</label>
+            <select class="form-select" id="editDeviceType">
+              <option value="NVIDIA_GPU">NVIDIA GPU</option>
+              <option value="INTEL_CPU">Intel CPU</option>
+              <option value="CPU">CPU</option>
+              <option value="JETSON">Jetson</option>
+            </select>
+          </div>
+          <div class="col-sm-12 mb-3">
+            <label for="editDeviceInfrastructure" class="form-label">Infrastructure</label>
+            <select class="form-select" id="editDeviceInfrastructure">
+              <option value="ON_PREMISE">On-Premise</option>
+              <option value="CLOUD">Cloud</option>
+            </select>
+          </div>
+          <div class="col-sm-12 mb-3">
+            <label for="editDeviceOS" class="form-label">Operating System</label>
+            <select class="form-select" id="editDeviceOS">
+              <option value="UBUNTU">Ubuntu</option>
+              <option value="WINDOWS">Windows</option>
+            </select>
+          </div>
+          <div class="col-sm-12 mb-3">
+            <label for="editDeviceDescription" class="form-label">Description</label>
+            <textarea id="editDeviceDescription" class="form-control" placeholder="Device Description"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger" id="deleteDeviceBtn">Delete</button>
+        <button type="button" class="btn btn-primary" id="saveChangesBtn">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!--/ DataTable with Devices -->
+{% endblock %}

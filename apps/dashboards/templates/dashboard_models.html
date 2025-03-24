@@ -1,0 +1,125 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Hazır Modeller{% endblock %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/masonry/masonry.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block content %}
+<!-- Add New Model Button -->
+<div class="d-flex justify-content-end mb-3">
+  <button type="button" class="btn btn-primary" data-bs-toggle="offcanvas" data-bs-target="#add-new-model" aria-controls="add-new-model">
+    <i class="ti ti-plus me-1"></i> New Model
+  </button>
+</div>
+
+<!-- Offcanvas Form for Adding New Model -->
+<div class="offcanvas offcanvas-end" id="add-new-model" tabindex="-1" aria-labelledby="addNewModelLabel">
+  <div class="offcanvas-header border-bottom">
+    <h5 class="offcanvas-title" id="addNewModelLabel">Add New Model</h5>
+    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body flex-grow-1">
+    <form class="add-new-model pt-0 row g-2" id="form-add-new-model" method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="col-sm-12">
+        <label class="form-label" for="modelTitle">Model Title</label>
+        <div class="input-group input-group-merge">
+          <span id="modelTitleIcon" class="input-group-text"><i class="ti ti-file-text"></i></span>
+          <input type="text" id="modelTitle" class="form-control" name="title" placeholder="Model Title" required />
+        </div>
+      </div>
+
+      <div class="col-sm-12">
+        <label class="form-label" for="modelContent">Content</label>
+        <textarea id="modelContent" name="content" class="form-control" placeholder="Model Content" required></textarea>
+      </div>
+
+      <div class="col-sm-12">
+        <label class="form-label" for="modelImage">Upload Image</label>
+        <input type="file" id="modelImage" name="image_path" class="form-control" />
+      </div>
+
+      <div class="col-sm-12">
+        <label class="form-label" for="modelFile">Upload Model (.pt file)</label>
+        <input type="file" id="modelFile" name="model_file" class="form-control" accept=".pt" required />
+      </div>
+
+      <div class="col-sm-12 d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary data-submit me-sm-4 me-1">Submit</button>
+        <button type="reset" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">Cancel</button>
+      </div>
+    </form>
+
+
+  </div>
+</div>
+
+<!-- Displaying Ready Models -->
+<div class="col-md">
+  <div class="card mb-6">
+    <div class="card-body">
+      <div class="card-title header-elements">
+        <h5 class="m-0 me-2">Hazır Modeller</h5>
+        <div class="card-title-elements ms-auto">
+          <span class="badge bg-primary rounded-pill">{{ models|length }}</span> <!-- Shows the number of models -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Card Grid of Ready Models -->
+<div class="row row-cols-1 row-cols-md-3 g-6 mb-12">
+  {% for model in models %}
+  <div class="col">
+    <div class="card h-100">
+      <img class="card-img-top" src="{{ model.image_path.url }}" alt="{{ model.title }}" />
+      <div class="card-body">
+        <h5 class="card-title">{{ model.title }}</h5>
+        <p class="card-text">{{ model.content }}</p>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+{% block page_js %}
+<script>
+  $(document).ready(function () {
+
+    $('#form-add-new-model').on('submit', function (e) {
+      e.preventDefault();
+
+      var form = $(this);
+      var formData = new FormData(this);
+
+      $.ajax({
+        url: '/add-model/',  // Model addition URL
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function (response) {
+          if (response.success) {
+            location.reload(); // Reload the page to show the new model
+          } else {
+            // Display the error messages from the response
+            alert('Error: ' + JSON.stringify(response.error));  // Convert the error object to string
+          }
+        },
+        error: function (xhr, status, error) {
+          // More detailed error reporting
+          var errorMessage = 'An error occurred: ' + xhr.status + ' ' + xhr.statusText + '\n' + xhr.responseText;
+          alert(errorMessage);
+        },
+      });
+    });
+  });
+</script>
+{% endblock %}

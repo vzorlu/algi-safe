@@ -1,0 +1,78 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Cihaz Konumları{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/leaflet/leaflet.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/leaflet/leaflet.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/maps-leaflet.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<div class="row">
+
+  <style>
+    .leaflet-container {
+      background-color: #1e1e1e;
+    }
+
+    .leaflet-popup-content-wrapper {
+      background: #2d2d2d;
+      color: #fff;
+    }
+
+    .leaflet-popup-tip {
+      background: #2d2d2d;
+    }
+
+    .leaflet-control-zoom a {
+      background-color: #2d2d2d;
+      color: #fff;
+      border-color: #444;
+    }
+
+    .leaflet-control-zoom a:hover {
+      background-color: #3d3d3d;
+    }
+
+    .card {
+      background-color: #2d2d2d;
+      border: 1px solid #444;
+    }
+
+    .card-header {
+      background-color: #1e1e1e;
+      border-bottom: 1px solid #444;
+      color: #fff;
+    }
+
+    .leaflet-map {
+      height: 700px;
+      border-radius: 4px;
+    }
+  </style>
+
+  <!-- Layer Control -->
+  <div class="col-12">
+    <div class="card">
+      <h5 class="card-header">AI Cihaz Konumları</h5>
+      <div class="card-body">
+        <div class="leaflet-map" id="layerControl"></div>
+      </div>
+    </div>
+  </div>
+  <!-- /Layer Control -->
+</div>
+{% endblock %}

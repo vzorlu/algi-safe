@@ -1,0 +1,78 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Logs{% endblock title %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/apex-charts/apex-charts.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/apex-charts/apexcharts.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/dashboards-crm.js' %}"></script>
+<script>
+$(document).ready(function(){
+  $('#logFilter').on('keyup', function(){
+    var filter = $(this).val().toLowerCase();
+    $('#logsTable tbody tr').filter(function(){
+      $(this).toggle($(this).text().toLowerCase().indexOf(filter) > -1)
+    });
+  });
+});
+</script>
+{% endblock page_js %}
+
+{% block content %}
+<div class="row g-6">
+
+  <!-- Revenue Growth -->
+  <div class="col-lg-12">
+    <div class="card h-100">
+      <div class="card-header">
+        <h5 class="card-title">Logs</h5>
+        <!-- Filter Input -->
+        <div class="card-toolbar" style="margin-top:10px;">
+          <input type="text" id="logFilter" class="form-control" placeholder="Filtrele...">
+        </div>
+      </div>
+      <div class="card-body">
+        <table class="table table-striped" id="logsTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Zaman</th>
+              <th>Olay</th>
+              <th>Kullanıcı</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Sample log rows -->
+            <tr>
+              <td>1</td>
+              <td>2023-10-01 12:34</td>
+              <td>Olay Açıklaması 1</td>
+              <td>Admin</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>2023-10-01 12:40</td>
+              <td>Olay Açıklaması 2</td>
+              <td>Admin</td>
+            </tr>
+            <!-- Add additional rows as needed -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

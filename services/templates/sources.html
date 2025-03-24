@@ -1,0 +1,468 @@
+{% extends layout_path %}
+{% load static %}
+{% load i18n %}
+{% block title %}Kaynak Listesi{% endblock %}
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/masonry/masonry.js' %}"></script>
+{% endblock vendor_js %}
+{% block content %}
+<div class="offcanvas offcanvas-end" id="add-new-source" tabindex="-1" aria-labelledby="addNewSourceLabel">
+  <div class="offcanvas-header border-bottom">
+    <h5 class="offcanvas-title" id="addNewSourceLabel">Kaynak Ekle</h5>
+    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body flex-grow-1">
+    <form class="add-new-source pt-0 row g-2" id="form-add-new-source" method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="col-sm-12">
+        <label class="form-label" for="sourceTitle">Başlık</label>
+        <div class="input-group input-group-merge">
+          <span id="sourceTitle2" class="input-group-text"><i class="ti ti-file-text"></i></span>
+          <input
+            type="text"
+            id="sourceTitle"
+            class="form-control"
+            name="title"
+            placeholder="Koridor, Giriş kapısı vb."
+            required
+          />
+        </div>
+      </div>
+
+      <div class="col-sm-12">
+        <label class="form-label" for="type">Kaynak Tipi</label>
+        <select name="type" id="type" class="form-select">
+          <option value="">Seçiniz</option>
+          <option value="HLS">HTTP Canlı Akış (HLS)</option>
+          <option value="MPEG-DASH">MPEG-DASH</option>
+          <option value="LOCAL_FILES">Yerel Dosyalar</option>
+          <option value="NETWORK_STREAMS">Ağ Akışları</option>
+          <option value="WEBCAMS">Web Kameraları</option>
+          <option value="IP_CAMERAS">IP Kameraları</option>
+          <option value="VIDEO_FILE_HOSTING">Video Dosyası Barındırma Hizmetleri</option>
+          <option value="SMB_NFS">SMB/NFS Dosya Paylaşımları</option>
+          <option value="VIDEO_APIS">Video API'leri</option>
+        </select>
+      </div>
+
+      <div class="col-sm-12" id="webcamField" style="display: none">
+        <label class="form-label" for="availableWebcams">Available Webcams</label>
+        <select class="form-select" id="availableWebcams" name="webcam" required>
+          <option value="">Select Webcam</option>
+        </select>
+      </div>
+
+      <!-- URL Field (initially hidden) -->
+      <div class="col-sm-12" id="urlField" style="display: none">
+        <label class="form-label" for="sourceURL">URL</label>
+        <input type="url" id="sourceURL" name="url" class="form-control" placeholder="RTSP://..." />
+      </div>
+
+      <!-- File Upload Field (initially hidden) -->
+      <div class="col-sm-12" id="fileUploadField" style="display: none">
+        <label class="form-label" for="sourceFile">Upload File</label>
+        <input type="file" id="sourceFile" name="file_upload" class="form-control" />
+      </div>
+
+
+      <!-- is_mobile Checkbox -->
+      <div class="form-group form-check">
+        <input type="checkbox" name="is_mobile" id="id_is_mobile" class="form-check-input" />
+        <label for="id_is_mobile" class="form-check-label">Mobil mi?</label>
+      </div>
+
+      <!-- is_record Checkbox -->
+      <div class="form-group form-check">
+        <input type="checkbox" name="is_record" id="id_is_record" class="form-check-input" />
+        <label for="id_is_record" class="form-check-label">Kayıt Yapılsın mı?</label>
+      </div>
+
+      <div class="col-sm-12 d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary data-submit me-sm-4 me-1">Kaydet</button>
+        <button type="reset" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">İptal</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add this after the add-source modal -->
+<div class="offcanvas offcanvas-end" id="update-source" tabindex="-1" aria-labelledby="updateSourceLabel">
+  <div class="offcanvas-header border-bottom">
+    <h5 class="offcanvas-title" id="updateSourceLabel">Kaynak Düzenle</h5>
+    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body flex-grow-1">
+    <form class="update-source pt-0 row g-2" id="form-update-source" method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" id="updateSourceId" name="source_id">
+      <div class="col-sm-12">
+        <label class="form-label" for="updateSourceTitle">Başlık</label>
+        <div class="input-group input-group-merge">
+          <span class="input-group-text"><i class="ti ti-file-text"></i></span>
+          <input type="text" id="updateSourceTitle" class="form-control" name="title" required />
+        </div>
+      </div>
+
+      <div class="col-sm-12">
+        <label class="form-label" for="updateType">Kaynak Tipi</label>
+        <select name="type" id="updateType" class="form-select">
+          <option value="">Seçiniz</option>
+          <option value="HLS">HTTP Canlı Akış (HLS)</option>
+          <option value="MPEG-DASH">MPEG-DASH</option>
+          <option value="LOCAL_FILES">Yerel Dosyalar</option>
+          <option value="NETWORK_STREAMS">Ağ Akışları</option>
+          <option value="WEBCAMS">Web Kameraları</option>
+          <option value="IP_CAMERAS">IP Kameraları</option>
+          <option value="VIDEO_FILE_HOSTING">Video Dosyası Barındırma</option>
+          <option value="SMB_NFS">SMB/NFS Dosya Paylaşımları</option>
+          <option value="VIDEO_APIS">Video API'leri</option>
+        </select>
+      </div>
+
+      <div class="col-sm-12" id="updateUrlField">
+        <label class="form-label" for="updateSourceURL">URL</label>
+        <input type="url" id="updateSourceURL" name="url" class="form-control" />
+      </div>
+
+      <div class="form-group form-check">
+        <input type="checkbox" name="is_mobile" id="update_is_mobile" class="form-check-input" />
+        <label for="update_is_mobile" class="form-check-label">Mobil mi?</label>
+      </div>
+
+      <div class="form-group form-check">
+        <input type="checkbox" name="is_record" id="update_is_record" class="form-check-input" />
+        <label for="update_is_record" class="form-check-label">Kayıt Yapılsın mı?</label>
+      </div>
+
+      <div class="col-sm-12 d-flex justify-content-between">
+        <button type="button" class="btn btn-danger delete-source">Sil</button>
+        <div>
+          <button type="submit" class="btn btn-primary data-submit me-sm-4 me-1">Güncelle</button>
+          <button type="reset" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">İptal</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add delete confirmation modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Kaynağı Sil</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        Bu kaynağı silmek istediğinize emin misiniz?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+        <button type="button" class="btn btn-danger" id="confirmDelete">Sil</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Kaynak Listesi -->
+<div class="col-md">
+  <div class="card mb-6">
+    <div class="card-body">
+      <div class="card-title header-elements">
+        <h5 class="m-0 me-2">Kaynak Listesi<span class="badge bg-primary rounded-pill">{{ sources|length }}</span>
+        </h5>
+        <div class="card-title-elements ms-auto">
+          <button
+          type="button"
+          class="btn btn-primary"
+          data-bs-toggle="offcanvas"
+          data-bs-target="#add-new-source"
+          aria-controls="add-new-source"
+        >
+          <i class="ti ti-plus me-1"></i>Kaynak Ekle</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row row-cols-1 row-cols-md-3 g-6 mb-12">
+  {% for source in sources %}
+  <div class="col">
+    <div class="card h-100 source-card"
+         data-source-id="{{ source.id }}"
+         data-source-url="{{ source.url }}"
+         data-source-title="{{ source.title }}"
+         style="cursor: pointer;">
+      <div class="card-body">
+        <small class="text-muted">Kamera id: {{ source.id }}</small>
+        <h5 class="card-title">{{ source.title }}</h5>
+        <p class="card-text">{{ source.type }}</p>
+        {% if source.image %}
+        <img class="card-img-top" src="{{ source.image.url }}" alt="{{ source.title }}" />
+        {% else %}
+        <p class="text-muted">No image available</p>
+        {% endif %}
+
+        <div class="d-flex justify-content-between mt-3">
+          <a href="{{ source.url }}" class="btn btn-primary" target="_blank">
+           Orjinal Link
+          </a>
+          <div>
+            <button class="btn btn-success refresh-source me-2"
+                    data-source-id="{{ source.id }}"
+                    data-image-url="{{ source.image.url }}">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+            <button class="btn btn-warning edit-source"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#update-source"
+                    data-source-id="{{ source.id }}"
+                    data-source-title="{{ source.title }}"
+                    data-source-type="{{ source.type }}"
+                    data-source-url="{{ source.url }}"
+                    data-source-is-mobile="{{ source.is_mobile|yesno:'true,false' }}"
+                    data-source-is-record="{{ source.is_record|yesno:'true,false' }}">
+              Düzenle
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+{% block page_js %}
+{{ block.super }}
+<script>
+  $(document).ready(function () {
+    // Function to list webcams
+    function listWebcams() {
+      // Clear any existing webcam options
+      $('#availableWebcams').empty().append('<option value="">Select Webcam</option>');
+
+      // Access media devices and list video input devices (webcams)
+      navigator.mediaDevices
+        .enumerateDevices()
+        .then(function (devices) {
+          let hasVideoInput = false;
+
+          devices.forEach(function (device) {
+            if (device.kind === 'videoinput') {
+              // Check if the device is a webcam
+              //console.log('Found webcam:', device.label || 'Unnamed Webcam');
+              hasVideoInput = true;
+              // Add the webcam to the dropdown list
+              $('#availableWebcams').append(new Option(device.label || 'Unnamed Webcam', device.deviceId));
+            }
+          });
+
+          // Show the webcam field if any webcams are found
+          if (hasVideoInput) {
+            $('#webcamField').show();
+          } else {
+            console.warn('No webcams found. Ensure the webcam is properly connected and permissions are granted.');
+            alert('No webcams found');
+            $('#webcamField').hide();
+          }
+        })
+        .catch(function (err) {
+          console.error('Error accessing media devices: ', err);
+          alert('Unable to access webcams. Make sure camera permissions are granted.');
+        });
+    }
+
+    $('#type').on('change', function () {
+      var selectedType = $(this).val();
+
+      // Tüm alanları gizle ve required'ı kaldır
+      $('#urlField').hide().find('input').prop('required', false);
+      $('#fileUploadField').hide().find('input').prop('required', false);
+      $('#webcamField').hide().find('select').prop('required', false);
+
+      // Seçilen türe göre ilgili alanları göster ve required'ı ekle
+      if (selectedType === 'NETWORK_STREAMS' || selectedType === 'IP_CAMERAS' || selectedType === 'VIDEO_APIS') {
+        $('#urlField').show().find('input').prop('required', true);
+      } else if (selectedType === 'LOCAL_FILES' || selectedType === 'VIDEO_FILE_HOSTING') {
+        $('#fileUploadField').show().find('input').prop('required', true);
+      } else if (selectedType === 'WEBCAMS') {
+        listWebcams(); // Webcam listesini getir
+        $('#webcamField').show().find('select').prop('required', true);
+      }
+    });
+
+    // Handle form submission for the new source
+    $('#form-add-new-source').on('submit', function (e) {
+      e.preventDefault();
+
+      var form = $(this);
+      var formData = new FormData(this);
+
+      // Webcam alanının boş olup olmadığını kontrol et
+      var webcamField = $('#availableWebcams');
+      if (webcamField.is(':visible') && !webcamField.val()) {
+        alert('Please select a webcam.');
+        return; // Formu gönderme
+      }
+
+      // FormData içeriğini //console.log ile yazdırma
+      for (var pair of formData.entries()) {
+        //console.log(pair[0] + ': ' + pair[1]);
+      }
+      $.ajax({
+        url: '/services/sources/add-source/', // Source addition URL
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function (response) {
+            if (response.success) {
+                location.reload(); // Reload the page to show the new source
+            } else {
+                alert('Error: ' + response.error);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert('An error occurred: ' + error);
+        }
+      });
+    });
+
+    // Edit source button click handler
+    $('.edit-source').on('click', function() {
+      const sourceData = $(this).data();
+
+      // Populate update form
+      $('#updateSourceId').val(sourceData.sourceId);
+      $('#updateSourceTitle').val(sourceData.sourceTitle);
+      $('#updateType').val(sourceData.sourceType);
+      $('#updateSourceURL').val(sourceData.sourceUrl);
+      $('#update_is_mobile').prop('checked', sourceData.sourceIsMobile === true);
+      $('#update_is_record').prop('checked', sourceData.sourceIsRecord === true);
+    });
+
+    // Handle update form submission
+    $('#form-update-source').on('submit', function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      const sourceId = $('#updateSourceId').val();
+
+      $.ajax({
+        url: `/services/sources/update-source/${sourceId}/`,
+        method: 'PUT',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+          if (response.status === 'success') {
+            location.reload();
+          } else {
+            alert('Error: ' + response.message);
+          }
+        },
+        error: function(xhr, status, error) {
+          alert('An error occurred: ' + error);
+        }
+      });
+    });
+
+    let currentSourceId = null;
+
+    // Store source ID when edit button clicked
+    $('.edit-source').on('click', function() {
+      currentSourceId = $(this).data('source-id');
+      // ... existing edit source code ...
+    });
+
+    // Add this JavaScript
+// Update the refresh source click handler
+$(document).on('click', '.refresh-source', function() {
+  const sourceId = $(this).data('source-id');
+  const imgElement = $(this).closest('.card').find('.card-img-top');
+
+  $.ajax({
+    url: `/services/sources/refresh-image/${sourceId}/`,  // Updated URL path
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()  // Add CSRF token
+    },
+    success: function(response) {
+      if (response.status === 'success') {
+        // Update image with new timestamp to force refresh
+        imgElement.attr('src', response.image_url + '?t=' + new Date().getTime());
+      } else {
+        alert('Error: ' + response.message);
+      }
+    },
+    error: function(xhr, status, error) {
+      alert('Image refresh failed: ' + error);
+    }
+  });
+});
+
+    // Delete button click handler
+    $('.delete-source').on('click', function() {
+      let deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+      deleteModal.show();
+    });
+
+    // Confirm delete handler
+    $('#confirmDelete').on('click', function() {
+      if (!currentSourceId) return;
+
+      $.ajax({
+        url: `/services/sources/delete-source/${currentSourceId}/`,
+        method: 'DELETE',
+        headers: {
+          'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function(response) {
+          if (response.status === 'success') {
+            location.reload();
+          } else {
+            alert('Error: ' + response.message);
+          }
+        },
+        error: function(xhr, status, error) {
+          alert('An error occurred: ' + error);
+        }
+      });
+    });
+
+
+    // Update source form submission
+    $('#form-update-source').on('submit', function(e) {
+      e.preventDefault();
+      let formData = new FormData(this);
+
+      $.ajax({
+        url: `/services/sources/update-source/${currentSourceId}/`,
+        method: 'PUT',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+          if (response.status === 'success') {
+            location.reload();
+          } else {
+            alert('Error: ' + response.message);
+          }
+        },
+        error: function(xhr, status, error) {
+          alert('An error occurred: ' + error);
+        }
+      });
+    });
+
+    // Add click handler for source cards
+    $('.source-card').on('click', function(e) {
+      // Don't trigger if clicking buttons inside the card
+      if (!$(e.target).closest('.btn').length) {
+        const sourceId = $(this).data('source-id');
+        window.location.href = `/services/task-add/?source_id=${sourceId}`;
+      }
+    });
+  });
+</script>
+{% endblock %}

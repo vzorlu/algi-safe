@@ -1,0 +1,194 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Tables - Basic Tables{% endblock %}
+
+{% block content %}
+
+
+
+
+<!-- Bootstrap Table with Caption -->
+<div class="card">
+  <h5 class="card-header">Departmanlar</h5>
+  <div class="table-responsive text-nowrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Departman Adı</th>
+          <th>Sınıf Tipleri</th>
+          <th>Aksiyon</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for department in departments %}
+        <tr onclick="openEditModal({{ department.id }})">
+          <td>
+            <i class="ti ti-building-community ti-md text-primary me-3"></i>
+            <span class="fw-medium">{{ department.name }}</span>
+          </td>
+          <td>
+            {% for class_name in department.class_names.all %}
+              <span class="badge bg-primary me-1">{{ class_name.name }}</span>
+            {% endfor %}
+          </td>
+          <td>
+            <div class="d-flex gap-2">
+              <a href="#" data-bs-toggle="modal" data-bs-target="#editDepartmentModal{{ department.id }}" class="text-primary" onclick="event.stopPropagation()">
+                <i class="ti ti-pencil"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center">Henüz departman eklenmemiş</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<!-- Bootstrap Table with Caption -->
+
+{% for department in departments %}
+<div class="modal fade" id="editDepartmentModal{{ department.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Departman Düzenle</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Departman Adı</label>
+          <input type="text" class="form-control" id="departmentName{{ department.id }}" value="{{ department.name }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Sınıf Tipleri</label>
+          <select id="departmentClassNames{{ department.id }}" class="form-select" multiple>
+            {% for class_data in class_data %}
+              <option value="{{ class_data.Name }}"
+                {% for class_name in department.class_names.all %}
+                  {% if class_data.Name == class_name.name %}selected{% endif %}
+                {% endfor %}>
+                {{ class_data.Turkish }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
+        <button type="button" class="btn btn-primary" onclick="updateDepartment({{ department.id }})">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/tagify/tagify.css' %}" />
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+  .table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .table tbody tr:hover {
+    background-color: rgba(39, 142, 252, 0.04);
+  }
+
+  .select2-dropdown {
+    z-index: 999999;
+  }
+</style>
+{% endblock %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/tagify/tagify.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+{% endblock %}
+
+{% block page_js %}
+{{ block.super }}
+<script>
+// Add this function at the beginning of your existing JavaScript
+function openEditModal(departmentId) {
+  const modalElement = document.querySelector(`#editDepartmentModal${departmentId}`);
+  const modal = new bootstrap.Modal(modalElement);
+  modal.show();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    {% for department in departments %}
+    const classNamesSelect{{ department.id }} = document.querySelector('#departmentClassNames{{ department.id }}');
+    if (classNamesSelect{{ department.id }}) {
+        $(classNamesSelect{{ department.id }}).select2({
+            placeholder: 'Sınıf tipleri seçiniz',
+            allowClear: true,
+            width: '100%'
+        });
+    }
+    {% endfor %}
+});
+
+function updateDepartment(departmentId) {
+    try {
+        const name = document.getElementById(`departmentName${departmentId}`).value;
+        const classNamesSelect = document.querySelector(`#departmentClassNames${departmentId}`);
+        const selectedClassNames = Array.from(classNamesSelect.selectedOptions).map(option => option.value);
+
+        fetch(`/departmanlar/${departmentId}/update/`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                name: name,
+                class_names: selectedClassNames
+            })
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                throw new Error('Server responded with error');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating department:', error);
+            alert('Departman güncellenirken bir hata oluştu');
+        });
+    } catch (error) {
+        console.error('Error in updateDepartment:', error);
+        alert('İşlem sırasında bir hata oluştu');
+    }
+}
+
+
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

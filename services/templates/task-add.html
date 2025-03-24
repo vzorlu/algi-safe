@@ -1,0 +1,884 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ sources.title }}{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/select2/select2.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/bs-stepper/bs-stepper.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/rateyo/rateyo.css' %}" />
+<!-- Add Rete.js CSS -->
+<link rel="stylesheet" href="{% static 'vendor/libs/retejs/style.css' %}" />
+{% endblock vendor_css %}
+
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
+<script src="{% static 'js/fabric.min.js' %}"></script>
+<script src="{% static 'vendor/libs/select2/select2.js' %}"></script>
+<script src="{% static 'vendor/libs/bs-stepper/bs-stepper.js' %}"></script>
+<script src="{% static 'vendor/libs/rateyo/rateyo.js' %}"></script>
+<script src="{% static 'vendor/libs/cleavejs/cleave.js' %}"></script>
+<script src="{% static 'vendor/libs/cleavejs/cleave-phone.js' %}"></script>
+<!-- Add Rete.js and its dependencies -->
+<script src="{% static 'vendor/libs/retejs/rete.min.js' %}"></script>
+<script src="{% static 'vendor/libs/retejs/rete-connection-plugin.min.js' %}"></script>
+<script src="{% static 'vendor/libs/retejs/rete-area-plugin.min.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/wizard-ex-checkout.css' %}" />
+{% endblock page_css %}
+{% block page_js %}
+
+{{ block.super }}
+<script src="{% static 'js/wizard-ex-checkout.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sourceId = urlParams.get('source_id');
+    let ws = null;
+    let lastFrame = null;
+    let mainCanvas = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+
+    function connectWebSocket() {
+        if (!sourceId) return null;
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(`${protocol}//${window.location.host}/ws/video/${sourceId}/`);
+
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.error) {
+                console.error('Stream error:', data.error);
+                return;
+            }
+            if (data.frame) {
+                lastFrame = `data:image/jpeg;base64,${data.frame}`;
+                updateCanvas(mainCanvas, lastFrame);
+            }
+
+            // Create polygons from data.polygons
+            if (data.polygons) {
+                data.polygons.forEach(polygonData => {
+                    const polygon = new fabric.Polygon(polygonData.coordinates, {
+                      fill: 'rgba(255, 183, 2, 0.14)',
+                      stroke: 'rgba(255, 255, 0, 0.5)',
+                      strokeWidth: 1.5,
+                      selectable: false
+                    });
+                    mainCanvas.add(polygon);
+
+                    // Calculate the center of the polygon
+                    const center = polygon.getCenterPoint();
+
+                    // Add label to the center of the polygon
+                    const label = new fabric.Text(polygonData.label, {
+                        left: center.x,
+                        top: center.y,
+                        fontSize: 14,
+                        fill: '#000',
+                        originX: 'center',
+                        originY: 'center',
+                        selectable: false
+                    });
+                    mainCanvas.add(label);
+
+                    // Add left-click context menu
+                    polygon.on('mousedown', function(options) {
+                        if (options.e.button === 0) { // Left-click
+                            showContextMenu(options.e, polygon);
+                        }
+                    });
+                });
+            }
+        };
+
+        ws.onclose = function() {
+            if (reconnectAttempts < maxReconnectAttempts) {
+                //console.log('Bağlantı koptu, yeniden bağlanılıyor...');
+                setTimeout(() => {
+                    reconnectAttempts++;
+                    connectWebSocket();
+                }, Math.min(1000 * Math.pow(2, reconnectAttempts), 10000));
+            }
+        };
+
+        return ws;
+    }
+
+    function showContextMenu(event, polygon) {
+        const contextMenu = document.getElementById('contextMenu');
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = `${event.clientX}px`;
+        contextMenu.style.top = `${event.clientY}px`;
+
+        // Add event listener to hide context menu on canvas click
+        mainCanvas.on('mouse:down', function() {
+            contextMenu.style.display = 'none';
+        });
+
+        // Add event listeners for context menu actions
+        document.getElementById('addRule').onclick = function() {
+            // Implement add rule functionality
+            alert('Add rule functionality not implemented yet.');
+            contextMenu.style.display = 'none';
+        };
+
+        document.getElementById('deletePolygon').onclick = function() {
+            mainCanvas.remove(polygon);
+            contextMenu.style.display = 'none';
+        };
+    }
+
+    function updateCanvas(canvas, frameData) {
+        if (!canvas) return;
+
+        fabric.Image.fromURL(frameData, function(img) {
+            canvas.setDimensions({
+                width: img.width,
+                height: img.height
+            });
+            canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+        });
+    }
+
+    // Initialize main canvas
+    mainCanvas = new fabric.Canvas('videoCanvas', {
+        selection: false
+    });
+
+
+    // Start WebSocket connection
+    ws = connectWebSocket();
+
+
+    let isDrawing = false;
+    let currentPolygon = null;
+    let points = [];
+    let polygons = [];
+    let modalCanvas = null;
+
+    function initializeModalCanvas() {
+        modalCanvas = new fabric.Canvas('lastFrameCanvas', {
+            selection: false
+        });
+
+        // Add mouse down event listener after canvas is initialized
+        modalCanvas.on('mouse:down', function(options) {
+            if (!isDrawing) return;
+
+            const pointer = modalCanvas.getPointer(options.e);
+            points.push({x: pointer.x, y: pointer.y});
+
+            // Draw vertex point
+            const circle = new fabric.Circle({
+                radius: 5,
+                fill: '#fff',
+                stroke: '#000',
+                strokeWidth: 1,
+                left: pointer.x - 5,
+                top: pointer.y - 5,
+                selectable: false
+            });
+            modalCanvas.add(circle);
+
+            // Update temporary polygon
+            if (points.length > 1) {
+                if (currentPolygon) {
+                    modalCanvas.remove(currentPolygon);
+                }
+                currentPolygon = new fabric.Polygon(points, {
+                    fill: '#ffa600', // Transparent orange
+                    stroke: '#ffa600', // Yellow stroke
+                    strokeWidth: 2,
+                    strokeDashArray: [5, 5], // Dashed lines
+                    selectable: false
+                });
+                modalCanvas.add(currentPolygon);
+            }
+
+            modalCanvas.renderAll();
+        });
+
+        // Display last frame if available
+        if (lastFrame) {
+            updateCanvas(modalCanvas, lastFrame);
+        }
+
+        return modalCanvas;
+    }
+
+    // Drawing controls
+    const startDrawingBtn = document.getElementById('startDrawing');
+    const completePolygonBtn = document.getElementById('completePolygon');
+
+    startDrawingBtn.addEventListener('click', function() {
+        isDrawing = true;
+        points = [];
+        startDrawingBtn.classList.add('d-none');
+        completePolygonBtn.classList.remove('d-none');
+    });
+
+    completePolygonBtn.addEventListener('click', function() {
+        if (points.length >= 3) {
+            completePolygon();
+            namePolygonModal.show();
+        }
+    });
+
+    document.getElementById('savePolygonName').addEventListener('click', function() {
+        const name = document.getElementById('polygonName').value;
+        if (name && currentPolygon) {
+            addPolygonToList(currentPolygon, name);
+            namePolygonModal.hide();
+            document.getElementById('polygonName').value = '';
+        }
+    });
+
+    function completePolygon() {
+        if (!modalCanvas) return;
+
+        if (currentPolygon) {
+            modalCanvas.remove(currentPolygon);
+        }
+        currentPolygon = new fabric.Polygon(points, {
+            fill: 'rgba(255, 165, 0, 0.3)', // Transparent orange
+            stroke: 'rgba(255, 255, 0, 0.5)', // Transparent yellow stroke
+            strokeWidth: 2,
+            strokeDashArray: [5, 5], // Dashed lines
+            objectCaching: false,
+            selectable: true
+        });
+        modalCanvas.add(currentPolygon);
+        modalCanvas.renderAll();
+
+        isDrawing = false;
+        startDrawingBtn.classList.remove('d-none');
+        completePolygonBtn.classList.add('d-none');
+    }
+
+    function addPolygonToList(polygon, name) {
+        const polygonList = document.getElementById('polygonList');
+        const listItem = document.createElement('div');
+        listItem.className = 'list-group-item';
+        listItem.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0">${name}</h6>
+                    <small class="text-muted">Nokta sayısı: ${points.length}</small>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-danger delete-polygon">
+                        <i class="ti ti-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        polygonList.appendChild(listItem);
+
+        const polygonData = {
+            element: polygon,
+            listItem: listItem,
+            name: name,
+            points: [...points],
+            isSaved: false  // Add this flag
+        };
+        polygons.push(polygonData);
+
+        listItem.querySelector('.delete-polygon').addEventListener('click', function() {
+            modalCanvas.remove(polygon);
+            listItem.remove();
+            polygons = polygons.filter(p => p !== polygonData);
+        });
+
+        // Reset for next polygon
+        points = [];
+        currentPolygon = null;
+    }
+
+    // Add save all polygons functionality
+    document.getElementById('saveAllPolygons').addEventListener('click', function() {
+        // Only get the new polygons that haven't been saved yet
+        const newPolygonData = polygons.filter(p => !p.isSaved).map(p => ({
+            coordinates: p.points,
+            label: p.name,
+            color: 'yellow', // Yellow stroke
+            transition_lines: [],
+            crossing_direction: []
+        }));
+
+        if (newPolygonData.length === 0) {
+            alert('No new polygons to save');
+            return;
+        }
+
+        fetch(`/services/sources/update-source/${sourceId}/`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                polygons: newPolygonData
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Mark all polygons as saved
+                polygons.forEach(p => {
+                    p.isSaved = true;
+                });
+                alert('Alanlar başarıyla kaydedildi');
+
+                // Update the polygons array with the server response
+                if (data.polygons) {
+                    // Keep local representation in sync with server
+                    //console.log('Updated polygons from server:', data.polygons);
+                }
+            } else {
+                alert('Hata: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Bir hata oluştu');
+        });
+    });
+});
+
+function deletePolygon(sourceId, polygonIndex) {
+    if (!confirm('Bu alanı silmek istediğinizden emin misiniz?')) {
+        return;
+    }
+
+    fetch(`/services/sources/${sourceId}/polygons/${polygonIndex}/`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Remove the polygon element from DOM
+            const polygonElement = document.querySelector(`[data-polygon-index="${polygonIndex}"]`).closest('.form-check');
+            polygonElement.remove();
+
+            // Update polygon count
+            const countElement = document.querySelector('#headingOne .text-body');
+            const currentCount = parseInt(countElement.textContent);
+            countElement.textContent = (currentCount - 1).toString();
+
+            // Show success message
+            alert('Alan başarıyla silindi');
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Bir hata oluştu');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelector('#btn-ileri-two').addEventListener('click', () => {
+    debugger;
+    document.querySelector('#checkout-details').style.display = 'none';
+    document.querySelector('#model-select').style.display = 'block';
+  });
+});
+
+// Rete.js initialization
+async function initRete() {
+    const container = document.querySelector('#rete');
+    const editor = new Rete.NodeEditor('demo@1.0.0', container);
+    const engine = new Rete.Engine('demo@1.0.0');
+
+    // Add connection plugin
+    const connectionPlugin = new Rete.ConnectionPlugin();
+    editor.use(connectionPlugin);
+
+    // Add area plugin
+    const areaPlugin = new Rete.AreaPlugin();
+    editor.use(areaPlugin);
+
+    // Example component
+    class NumComponent extends Rete.Component {
+        constructor() {
+            super("Number");
+        }
+
+        builder(node) {
+            const out = new Rete.Output('num', "Number", numSocket);
+            const ctrl = new Rete.Control('number');
+
+            return node.addControl(ctrl).addOutput(out);
+        }
+    }
+
+    // Register component
+    editor.register(new NumComponent());
+
+    // Add initial nodes
+    const n1 = await components[0].createNode({num: 2});
+    const n2 = await components[0].createNode({num: 3});
+
+    n1.position = [80, 200];
+    n2.position = [320, 200];
+
+    editor.addNode(n1);
+    editor.addNode(n2);
+
+    editor.on('process nodecreated noderemoved connectioncreated connectionremoved', async () => {
+        await engine.abort();
+        await engine.process(editor.toJSON());
+    });
+}
+
+// Initialize Rete.js when document is ready
+document.addEventListener('DOMContentLoaded', () => {
+    initRete().catch(console.error);
+});
+</script>
+{% endblock page_js %}
+
+{% block content %}
+<!-- Add this container for Rete.js editor -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title">Flow Editor</h5>
+      </div>
+      <div class="card-body">
+        <div id="rete" style="width: 100%; height: 600px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Your existing content -->
+<div class="row g-6">
+  <div class="col-lg-4">
+    <div class="me-1">
+      <h5 class="mb-0">Görevler</h5>
+      <p class="mb-0">Görevler</span></p>
+    </div>
+    <div id="wizard-checkout" class="bs-stepper wizard-icons wizard-icons-example">
+      <div class="bs-stepper-header m-lg-auto border-0">
+        <div class="step" data-target="#checkout-cart">
+          <button type="button" class="step-trigger">
+          </button>
+        </div>
+        <div class="step" data-target="#checkout-details">
+          <button type="button" class="step-trigger">
+          </button>
+        </div>
+        <div class="step" data-target="#model-select">
+          <button type="button" class="step-trigger">
+          </button>
+        </div>
+      </div>
+      <div class="bs-stepper-content">
+        <form id="wizard-checkout-form" onSubmit="return false">
+          <div id="checkout-cart" class="content">
+            <div class="row">
+              <div class="list-group" id="list-group">
+                <a href="javascript:void(0);" class="list-group-item list-group-item-action d-flex justify-content-between">
+                  <div class="li-wrapper d-flex justify-content-start align-items-center">
+                    <div class="avatar avatar-sm me-4">
+                      <span class="avatar-initial rounded-circle bg-label-success">A</span>
+                    </div>
+                    <div class="list-content">
+                      <h6 class="mb-1">Alandaki Nesne</h6>
+                      <small class="text-muted">Belirli bir alandaki nesneyi algılar.</small>
+                    </div>
+                  </div>
+                  <small><i class="ti ti-arrow-right"></i></small>
+                </a>
+                <!-- Çizgi Geçişi -->
+                <a href="javascript:void(0);" class="list-group-item list-group-item-action d-flex justify-content-between">
+                  <div class="li-wrapper d-flex justify-content-start align-items-center">
+                    <div class="avatar avatar-sm me-4">
+                      <span class="avatar-initial rounded-circle bg-label-danger">Ç</span>
+                    </div>
+                    <div class="list-content">
+                      <h6 class="mb-1">Çizgi Geçişi</h6>
+                      <small class="text-muted">Bir nesnenin belirli bir çizgiyi geçtiğini algılar.</small>
+                    </div>
+                  </div>
+                  <small><i class="ti ti-arrow-right"></i></small>
+                </a>
+                <!-- Dolanma -->
+                <a href="javascript:void(0);" class="list-group-item list-group-item-action d-flex justify-content-between">
+                  <div class="li-wrapper d-flex justify-content-start align-items-center">
+                    <div class="avatar avatar-sm me-4">
+                      <span class="avatar-initial rounded-circle bg-label-primary">D</span>
+                    </div>
+                    <div class="list-content">
+                      <h6 class="mb-1">Dolanma</h6>
+                      <small class="text-muted">Belirli bir alan çevresinde uzun süre kalmayı algılar.</small>
+                    </div>
+                  </div>
+                  <small><i class="ti ti-arrow-right"></i></small>
+                </a>
+                <!-- Durum Değişikliği -->
+                <a href="javascript:void(0);" class="list-group-item list-group-item-action d-flex justify-content-between">
+                  <div class="li-wrapper d-flex justify-content-start align-items-center">
+                    <div class="avatar avatar-sm me-4">
+                      <span class="avatar-initial rounded-circle bg-label-warning">D</span>
+                    </div>
+                    <div class="list-content">
+                      <h6 class="mb-1">Durum Değişikliği</h6>
+                      <small class="text-muted">Bir nesnenin veya alanın durumundaki değişikliği algılar.</small>
+                    </div>
+                  </div>
+                  <small><i class="ti ti-arrow-right"></i></small>
+                </a>
+                <!-- Rotayı Takip Etme -->
+                <a href="javascript:void(0);" class="list-group-item list-group-item-action d-flex justify-content-between">
+                  <div class="li-wrapper d-flex justify-content-start align-items-center">
+                    <div class="avatar avatar-sm me-4">
+                      <span class="avatar-initial rounded-circle bg-label-info">R</span>
+                    </div>
+                    <div class="list-content">
+                      <h6 class="mb-1">Rotayı Takip Etme</h6>
+                      <small class="text-muted">Belirlenen rotanın izlenip izlenmediğini algılar.</small>
+                    </div>
+                  </div>
+                  <small><i class="ti ti-arrow-right"></i></small>
+                </a>
+                <!-- Müdahale -->
+                <a href="javascript:void(0);" class="list-group-item list-group-item-action d-flex justify-content-between">
+                  <div class="li-wrapper d-flex justify-content-start align-items-center">
+                    <div class="avatar avatar-sm me-4">
+                      <span class="avatar-initial rounded-circle bg-label-secondary">M</span>
+                    </div>
+                    <div class="list-content">
+                      <h6 class="mb-1">Müdahale</h6>
+                      <small class="text-muted">Kamera veya cihaza yapılan fiziksel müdahaleyi algılar.</small>
+                    </div>
+                  </div>
+                  <small><i class="ti ti-arrow-right"></i></small>
+                </a>
+                <!-- Kaldırılan Nesne -->
+                <a href="javascript:void(0);" class="list-group-item list-group-item-action d-flex justify-content-between">
+                  <div class="li-wrapper d-flex justify-content-start align-items-center">
+                    <div class="avatar avatar-sm me-4">
+                      <span class="avatar-initial rounded-circle bg-label-danger">K</span>
+                    </div>
+                    <div class="list-content">
+                      <h6 class="mb-1">Kaldırılan Nesne</h6>
+                      <small class="text-muted">Belirli bir alandan kaldırılan bir nesneyi algılar.</small>
+                    </div>
+                  </div>
+                  <small><i class="ti ti-arrow-right"></i></small>
+                </a>
+                <!-- Hareketsiz Nesne -->
+                <a href="javascript:void(0);" class="list-group-item list-group-item-action d-flex justify-content-between">
+                  <div class="li-wrapper d-flex justify-content-start align-items-center">
+                    <div class="avatar avatar-sm me-4">
+                      <span class="avatar-initial rounded-circle bg-label-primary">H</span>
+                    </div>
+                    <div class="list-content">
+                      <h6 class="mb-1">Hareketsiz Nesne</h6>
+                      <small class="text-muted">Uzun süre hareket etmeyen bir nesneyi algılar.</small>
+                    </div>
+                  </div>
+                  <small><i class="ti ti-arrow-right"></i></small>
+                </a>
+                <!-- Alana Giriş -->
+                <a href="javascript:void(0);" class="list-group-item list-group-item-action d-flex justify-content-between">
+                  <div class="li-wrapper d-flex justify-content-start align-items-center">
+                    <div class="avatar avatar-sm me-4">
+                      <span class="avatar-initial rounded-circle bg-label-success">G</span>
+                    </div>
+                    <div class="list-content">
+                      <h6 class="mb-1">Alana Giriş</h6>
+                      <small class="text-muted">Belirli bir alana bir nesnenin girdiğini algılar.</small>
+                    </div>
+                  </div>
+                  <small><i class="ti ti-arrow-right"></i></small>
+                </a>
+                <!-- Alandan Çıkış -->
+                <a href="javascript:void(0);" class="list-group-item list-group-item-action d-flex justify-content-between">
+                  <div class="li-wrapper d-flex justify-content-start align-items-center">
+                    <div class="avatar avatar-sm me-4">
+                      <span class="avatar-initial rounded-circle bg-label-danger">Ç</span>
+                    </div>
+                    <div class="list-content">
+                      <h6 class="mb-1">Alandan Çıkış</h6>
+                      <small class="text-muted">Belirli bir alandan bir nesnenin çıktığını algılar.</small>
+                    </div>
+                  </div>
+                  <small><i class="ti ti-arrow-right"></i></small>
+                </a>
+              </div>
+              <div id="label-text" class="mb-1"></div>
+              <div class="d-flex justify-content-between mt-3">
+                <button type="button" class="btn btn-secondary" id="btn-geri" disabled>Geri</button>
+                <button type="button" class="btn btn-primary" id="btn-ileri">İleri</button>
+                <button type="button" class="btn btn-success" id="btn-ok" disabled>Ok</button>
+                <button type="button" class="btn btn-danger" id="btn-iptal">İptal</button>
+              </div>
+              <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                  const listGroup = document.getElementById('list-group');
+                  const labelText = document.getElementById('label-text');
+                  const btnIleri = document.getElementById('btn-ileri');
+                  const btnGeri = document.getElementById('btn-geri');
+                  const btnOk = document.getElementById('btn-ok');
+                  const btnIptal = document.getElementById('btn-iptal');
+                  const stepper = new Stepper(document.querySelector('.bs-stepper'));
+
+                  listGroup.addEventListener('click', function(event) {
+                    if (event.target && event.target.closest('a.list-group-item')) {
+                      const listItem = event.target.closest('a.list-group-item');
+                      const itemText = listItem.querySelector('h6.mb-1').textContent;
+                      const itemDescription = listItem.querySelector('small.text-muted').textContent;
+
+                      // Clear previous content
+                      labelText.innerHTML = '';
+
+                      // Create a label and input field with the clicked item's text
+                      const label = document.createElement('label');
+                      label.setAttribute('for', 'defaultFormControlInput');
+                      label.className = 'form-label';
+                      label.textContent = itemText;
+
+                      const inputField = document.createElement('input');
+                      inputField.type = 'text';
+                      inputField.className = 'form-control';
+                      inputField.id = 'defaultFormControlInput';
+                      inputField.placeholder = '';
+                      inputField.value = '';
+                      inputField.setAttribute('aria-describedby', 'defaultFormControlHelp');
+
+                      const helpText = document.createElement('div');
+                      helpText.id = 'defaultFormControlHelp';
+                      helpText.className = 'form-text';
+                      helpText.textContent = itemDescription;
+
+                      labelText.appendChild(label);
+                      labelText.appendChild(inputField);
+                      labelText.appendChild(helpText);
+
+                      // Scroll the input field into view and focus it
+                      inputField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      inputField.focus();
+                    }
+                  });
+
+                  btnIleri.addEventListener('click', function() {
+                    stepper.next();
+                    btnGeri.disabled = false;
+                    btnOk.disabled = false;
+                    btnIleri.disabled = true;
+
+                    // Clear previous content
+                    labelText.innerHTML = '';
+
+                    // Create a select box with options
+                    const label = document.createElement('label');
+                    label.setAttribute('for', 'selectBox');
+                    label.className = 'form-label';
+                    label.textContent = 'Seçenekler';
+
+                    const selectBox = document.createElement('select');
+                    selectBox.className = 'form-select';
+                    selectBox.id = 'selectBox';
+                    const option1 = document.createElement('option');
+                    option1.value = 'Çizgi';
+                    option1.textContent = 'Çizgi';
+                    const option2 = document.createElement('option');
+                    option2.value = 'Alan';
+                    option2.textContent = 'Alan';
+
+                    selectBox.appendChild(option1);
+                    selectBox.appendChild(option2);
+
+                    labelText.appendChild(label);
+                    labelText.appendChild(selectBox);
+
+                    // Scroll the select box into view
+                    selectBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  });
+
+                  btnGeri.addEventListener('click', function() {
+                    stepper.previous();
+                    btnGeri.disabled = true;
+                    btnOk.disabled = true;
+                    btnIleri.disabled = false;
+
+                    // Clear previous content
+                    labelText.innerHTML = '';
+                  });
+
+                  btnIptal.addEventListener('click', function() {
+                    // Reset the form and stepper
+                    stepper.to(0);
+                    btnGeri.disabled = true;
+                    btnOk.disabled = true;
+                    btnIleri.disabled = false;
+
+                    // Clear previous content
+                    labelText.innerHTML = '';
+                  });
+                });
+              </script>
+            </div>
+          </div>
+          <div id="checkout-details" class="content">
+              <div class="row">
+                <p class="mb-0">Çizgileri Tanımlayın</span></p>
+
+                <div class="mb-4 mt-4">
+                  <label for="bir" class="form-label">Çizgi Türü</label>
+                  <select id="bir" class="form-select">
+                    <option value="1">Düz Çizgi</option>
+                    <option value="2">Alan Belirle</option>
+                    <option value="3">Kare</option>
+                  </select>
+                </div>
+                <div class="mb-4">
+                  <label for="iki" class="form-label">İsteğe Bağlı İkinci Çizgi</label>
+                  <select id="iki" class="form-select">
+                    <option value="1">Düz Çizgi</option>
+                    <option value="2">Alan Belirle</option>
+                    <option value="3">Kare</option>
+                  </select>
+                </div>
+                <div class="mb-4">
+                  <label for="uc" class="form-label">İsteğe Bağlı Üçüncü Çizgi</label>
+                  <select id="uc" class="form-select">
+                    <option value="1">Düz Çizgi</option>
+                    <option value="2">Alan Belirle</option>
+                    <option value="3">Kare</option>
+                  </select>
+                </div>
+              </div>
+              <p class="mb-0">Seçilen Hattın Özellikleri</span></p>
+              <div class="mb-4 mt-4">
+                <label for="defaultFormControlInput" class="form-label">Tepki Süresi</label>
+                <input type="number" value="0.2" class="form-control" id="defaultFormControlInput" placeholder="John Doe" aria-describedby="defaultFormControlHelp" />
+                <div id="defaultFormControlHelp" class="form-text">Geçiş hızı tepki süresi</div>
+              </div>
+              <div class="mb-4">
+                <label for="iki" class="form-label">Geçiş Yönü</label>
+                <select id="iki" class="form-select">
+                  <option value="1">İleri</option>
+                  <option value="2">Geri</option>
+                </select>
+              </div>
+
+
+              <div class="d-flex justify-content-between mt-3">
+                <button type="button" class="btn btn-secondary" id="btn-geri-two">Geri</button>
+                <button type="button" class="btn btn-primary" id="btn-ileri-two">İleri</button>
+                <button type="button" class="btn btn-success" id="btn-ok-two">Tamam</button>
+                <button type="button" class="btn btn-danger" id="btn-iptal-two">İptal</button>
+              </div>
+
+          </div>
+          <div id="model-select" class="content">
+            <form>
+                        <div class="container">
+                          <div class="mb-4">
+                            <label for="newStepInput" class="form-label">Yeni Adım</label>
+                            <textarea class="form-control" id="newStepInput" rows="3" placeholder="Yeni adım için bilgi giriniz..."></textarea>
+                          </div>
+
+                          <div class="d-flex justify-content-between mt-3">
+                            <button type="button" class="btn btn-secondary" id="btn-geri">Geri</button>
+                            <button type="button" class="btn btn-primary" id="btn-ileri">İleri</button>
+                            <button type="button" class="btn btn-success" id="btn-ok">Tamam</button>
+                            <button type="button" class="btn btn-danger" id="btn-iptal">İptal</button>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    <div class="d-flex justify-content-between align-items-center flex-wrap mb-6 gap-2">
+      <div class="me-1">
+        <h5 class="mb-0">{{ sources.title }}</h5>
+        <p class="mb-0">Type: <span class="fw-medium text-heading">{{sources.type}}</span></p>
+      </div>
+      <div class="d-flex align-items-center">
+        <span class="badge bg-label-danger">{{sources.resolution}}</span>
+        <i class='ti ti-share ti-lg mx-4'></i>
+        <i class='ti ti-bookmarks ti-lg'></i>
+      </div>
+    </div>
+    <div class="card academy-content shadow-none border">
+      <div class="p-2">
+        <div class="cursor-pointer">
+          <div id="videoContainer">
+            <canvas id="videoCanvas" style="width: 100%"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="card-body pt-4">
+        <h5>About this course</h5>
+        <p class="mb-0">Learn web design in 1 hour with 25+ simple-to-use rules and guidelines — tons
+          of amazing web design resources included!</p>
+        <hr class="my-6">
+        <h5>By the numbers</h5>
+        <div class="d-flex flex-wrap row-gap-2">
+          <div class="me-12">
+            <p class="text-nowrap mb-2"><i class='ti ti-check me-2 align-bottom'></i>Skill level: All Levels</p>
+            <p class="text-nowrap mb-2"><i class='ti ti-users me-2 align-top'></i>Students: 38,815</p>
+            <p class="text-nowrap mb-2"><i class='ti ti-world me-2 align-bottom'></i>Languages: English</p>
+            <p class="text-nowrap mb-0"><i class='ti ti-file me-2 align-bottom'></i>Captions: Yes</p>
+          </div>
+          <div>
+            <p class="text-nowrap mb-2"><i class='ti ti-video me-2 align-top ms-50'></i>Lectures: 19</p>
+            <p class="text-nowrap mb-0"><i class='ti ti-clock me-2 align-top'></i>Video: 1.5 total hours</p>
+          </div>
+        </div>
+        <hr class="my-6">
+        <h5>Description</h5>
+        <p class="mb-6">
+          The material of this course is also covered in my other course about web design and development
+          with HTML5 & CSS3. Scroll to the bottom of this page to check out that course, too!
+          If you're already taking my other course, you already have all it takes to start designing beautiful
+          websites today!
+        </p>
+        <p class="mb-6">
+          "Best web design course: If you're interested in web design, but want more than
+          just a "how to use WordPress" course,I highly recommend this one." — Florian Giusti
+        </p>
+        <p> "Very helpful to us left-brained people: I am familiar with HTML, CSS, JQuery,
+          and Twitter Bootstrap, but I needed instruction in web design. This course gave me practical,
+          impactful techniques for making websites more beautiful and engaging." — Susan Darlene Cain
+        </p>
+        <hr class="my-6">
+        <h5>Instructor</h5>
+        <div class="d-flex justify-content-start align-items-center user-name">
+          <div class="avatar-wrapper">
+            <div class="avatar me-4"><img src="{% static 'img/avatars/11.png' %}" alt="Avatar" class="rounded-circle"></div>
+          </div>
+          <div class="d-flex flex-column">
+            <h6 class="mb-1">Devonne Wallbridge</h6>
+            <small>Web Developer, Designer, and Teacher</small>
+          </div>
+        </div>
+      </div>
+    </div>  </div>
+</div>
+{% endblock %}

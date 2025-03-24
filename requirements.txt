@@ -1,0 +1,20 @@
+asgiref==3.8.1
+Django==5.1.2
+django-extensions==3.2.3
+livereload==2.7.0
+numpy==1.24.0
+pillow==10.4.0
+python-dotenv==1.0.1
+sqlparse==0.5.1
+tornado==6.4.1
+typing_extensions==4.12.2
+whitenoise==6.7.0
+djangorestframework==3.14.0
+onesignal_sdk==2.0.0
+opencv-python==4.5.5.64
+djangorestframework-simplejwt==5.2.2
+
+# Redis and Caching
+redis>=4.5.1
+django-redis>=5.2.0
+channels-redis>=4.1.0

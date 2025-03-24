@@ -1,0 +1,76 @@
+{
+  "menu": [
+    {
+      "url": "index",
+      "image": "/static/menu/1_dashboard.png",
+      "name": "Dashboard",
+      "slug": "dashboard-analytics"
+    },
+    {
+      "url": "harita-raporlari",
+      "name": "Harita Raporları",
+      "slug": "harita-raporlari",
+      "image": "/static/menu/2_harita_raporlari.png"
+    },
+    {
+      "url": "raporlar",
+      "name": "Kural Oluştur",
+      "slug": "raporlar",
+      "image": "/static/menu/3_kural_olustur.png"
+    },
+    {
+      "url": "rules-add",
+      "name": "Kurallar",
+      "slug": "rules-add",
+      "image": "/static/menu/3_kural_olustur.png"
+    },
+    {
+      "url": "departmanlar",
+      "name": "Departmanlar",
+      "slug": "departmanlar",
+      "image": "/static/menu/4_departmanlar.png"
+    },
+    {
+      "url": "kullanicilar",
+      "name": "Kullanicilar",
+      "slug": "kullanicilar",
+      "image": "/static/menu/5_kullanicilar.png"
+    },
+    {
+      "image": "/static/menu/6_canli_konum.png",
+      "url": "device-map",
+      "name": "Canlı Konum",
+      "slug": "devices"
+    },
+    {
+      "url": "stream:offline_mode",
+      "name": "Offline Mode",
+      "slug": "offline-mode",
+      "image": "/static/menu/7_offline_mod.png"
+    },
+    {
+      "url": "rules",
+      "name": "Görevler",
+      "slug": "rules",
+      "image": "/static/menu/8_gorevler_1.png"
+    },
+    {
+      "url": "jobs",
+      "name": "AI Drone",
+      "slug": "jobs",
+      "image": "/static/menu/9_kent_goz_1.png"
+    },
+    {
+      "url": "container",
+      "name": "AI Call Center",
+      "slug": "container",
+      "image": "/static/menu/10_sanal_asistan_2.png"
+    },
+    {
+      "url": "logs",
+      "name": "Loglar",
+      "slug": "logs",
+      "image": "/static/menu/11_loglar.png"
+    }
+  ]
+}

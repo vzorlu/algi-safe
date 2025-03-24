@@ -1,0 +1,516 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}
+  Dashboard - Analytics
+{% endblock %}
+
+{% block vendor_css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'vendor/libs/apex-charts/apex-charts.css' %}" />
+  <link rel="stylesheet" href="{% static 'vendor/libs/swiper/swiper.css' %}" />
+  <link rel="stylesheet" href="{% static 'vendor/libs/datatables-bs5/datatables.bootstrap5.css' %}" />
+  <link rel="stylesheet" href="{% static 'vendor/libs/datatables-responsive-bs5/responsive.bootstrap5.css' %}" />
+  <link rel="stylesheet" href="{% static 'vendor/libs/datatables-checkboxes-jquery/datatables.checkboxes.css' %}" />
+{% endblock %}
+
+{% block vendor_js %}
+  {{ block.super }}
+  <script src="{% static 'vendor/libs/apex-charts/apexcharts.js' %}"></script>
+  <script src="{% static 'vendor/libs/swiper/swiper.js' %}"></script>
+  <script src="{% static 'vendor/libs/datatables-bs5/datatables-bootstrap5.js' %}"></script>
+{% endblock %}
+
+{% block page_css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'vendor/css/pages/cards-advance.css' %}" />
+{% endblock %}
+
+{% block page_js %}
+  {{ block.super }}
+  <script src="{% static 'js/app-logistics-dashboard.js' %}"></script>
+
+{% endblock %}
+
+{% block content %}
+  <div class="row g-6">
+    <div class="col-xl-12">
+      <div class="nav-align-top mb-6">
+        <ul class="nav nav-pills mb-4" role="tablist">
+          <li class="nav-item mb-1 mb-sm-0">
+            <button type="button" class="nav-link active" role="tab" data-bs-toggle="tab" data-bs-target="#navs-pills-justified-home" aria-controls="navs-pills-justified-home" aria-selected="true">
+              <span class="d-none d-sm-block"><i class="tf-icons ti ti-home ti-sm me-1_5 align-text-bottom"></i> Genel Dashboard </span><i class="ti ti-home ti-sm d-sm-none"></i></button>
+          </li>
+          <li class="nav-item mb-1 mb-sm-0">
+            <button type="button" class="nav-link" role="tab" data-bs-toggle="tab" data-bs-target="#navs-pills-justified-profile" aria-controls="navs-pills-justified-profile" aria-selected="false">
+              <span class="d-none d-sm-block"><i class="tf-icons ti ti-user ti-sm me-1_5 align-text-bottom"></i> Kritik Uyarı  <span class="badge rounded-pill badge-center h-px-20 w-px-20 bg-danger ms-1_5 pt-50">3</span></span><i class="ti ti-user ti-sm d-sm-none"></i></button>
+          </li>
+          <li class="nav-item">
+            <button type="button" class="nav-link" role="tab" data-bs-toggle="tab" data-bs-target="#navs-pills-justified-messages" aria-controls="navs-pills-justified-messages" aria-selected="false">
+              <span class="d-none d-sm-block"><i class="tf-icons ti ti-message-dots ti-sm me-1_5 align-text-bottom"></i> Özelleştirilmiş Raporlar</span><i class="ti ti-message-dots ti-sm d-sm-none"></i></button>
+          </li>
+          <li class="nav-item">
+            <button type="button" class="nav-link" role="tab" data-bs-toggle="tab" data-bs-target="#navs-pills-justified-four" aria-controls=navs-pills-justified-four" aria-selected="false">
+              <span class="d-none d-sm-block"><i class="tf-icons ti ti-message-dots ti-sm me-1_5 align-text-bottom"></i> Analizler</span><i class="ti ti-message-dots ti-sm d-sm-none"></i></button>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="navs-pills-justified-home" role="tabpanel">
+            <div class="row g-6">
+              <!-- Card Border Shadow -->
+              <div class="row g-6">
+                <!-- Ağaç Sayısı Card -->
+                <div class="col-lg-3 col-sm-6">
+                    <div class="card card-border-shadow-primary h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="avatar me-4">
+                                    <span class="avatar-initial rounded bg-label-primary">
+                                        <img src="{% static 'belediyeicons/agac-durumu-2.svg' %}" alt="Ağaç Durumu" width="24"/>
+                                    </span>
+                                </div>
+                                <h4 class="mb-0">42</h4>
+                            </div>
+                            <p class="mb-1">Ağaç Sayısı</p>
+                            <p class="mb-0">
+                                <span class="text-heading fw-medium me-2">+18.2%</span>
+                                <small class="text-muted">Geçen Haftaya Göre Artış</small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Araç Konumu Card -->
+                <div class="col-lg-3 col-sm-6">
+                    <div class="card card-border-shadow-warning h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="avatar me-4">
+                                    <span class="avatar-initial rounded bg-label-warning">
+                                        <img src="{% static 'belediyeicons/arac-konumu.svg' %}" alt="Araç Konumu" width="24"/>
+                                    </span>
+                                </div>
+                                <h4 class="mb-0">8</h4>
+                            </div>
+                            <p class="mb-1">Araç Konumu</p>
+                            <p class="mb-0">
+                                <span class="text-heading fw-medium me-2">-8.7%</span>
+                                <small class="text-muted">Geçen Haftaya Göre Azalış</small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bozuk Yol Card -->
+                <div class="col-lg-3 col-sm-6">
+                    <div class="card card-border-shadow-danger h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="avatar me-4">
+                                    <span class="avatar-initial rounded bg-label-danger">
+                                        <img src="{% static 'belediyeicons/bozuk-yol.svg' %}" alt="Bozuk Yol3" width="24"/>
+                                    </span>
+                                </div>
+                                <h4 class="mb-0">2</h4>
+                            </div>
+                            <p class="mb-1">Bozuk Yol4</p>
+                            <p class="mb-0">
+                                <span class="text-heading fw-medium me-2">+4.3%</span>
+                                <small class="text-muted">Geçen Haftaya Göre Artış</small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Çevre Kirliliği Card -->
+                <div class="col-lg-3 col-sm-6">
+                    <div class="card card-border-shadow-info h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="avatar me-4">
+                                    <span class="avatar-initial rounded bg-label-info">
+                                        <img src="{% static 'belediyeicons/cevre-kirliligi.svg' %}" alt="Çevre Kirliliği" width="24"/>
+                                    </span>
+                                </div>
+                                <h4 class="mb-0">98</h4>
+                            </div>
+                            <p class="mb-1">Çevre Kirliliği</p>
+                            <p class="mb-0">
+                                <span class="text-heading fw-medium me-2">+4.3%</span>
+                                <small class="text-muted">Geçen Haftaya Göre Artış</small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+              </div>
+              <!--/ Card Border Shadow -->
+
+              <!-- Vehicles overview -->
+              <div class="col-xxl-6">
+                <div class="card h-100">
+                  <div class="card-header d-flex align-items-center justify-content-between">
+                    <div class="card-title mb-0">
+                      <h5 class="m-0 me-2">Eksik Ekipman Analizi</h5>
+                    </div>
+                    <div class="dropdown">
+                      <button class="btn btn-text-secondary rounded-pill text-muted border-0 p-2 me-n1" type="button" id="vehiclesOverview" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="ti ti-dots-vertical ti-md text-muted"></i>
+                      </button>
+                      <div class="dropdown-menu dropdown-menu-end" aria-labelledby="vehiclesOverview">
+                        <a class="dropdown-item" href="javascript:void(0);">Select All</a>
+                        <a class="dropdown-item" href="javascript:void(0);">Refresh</a>
+                        <a class="dropdown-item" href="javascript:void(0);">Share</a>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="table-responsive">
+                      <table class="table card-table">
+                        <tbody class="table-border-bottom-0">
+                          <tr>
+                            <td class="w-50 ps-0">
+                              <div class="d-flex justify-content-start align-items-center">
+                                <div class="me-2">
+                                  <img src="{% static 'belediyeicons/cop-konteynerleri.svg' %}" alt="Dolu Çöp" width="24"/>
+                                </div>
+                                <h6 class="mb-0 fw-normal">Dolu Çöp</h6>
+                              </div>
+                            </td>
+                            <td class="text-end pe-0 text-nowrap">
+                              <h6 class="mb-0">22</h6>
+                            </td>
+                            <td class="text-end pe-0">
+                              <span>39.7%</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td class="w-50 ps-0">
+                              <div class="d-flex justify-content-start align-items-center">
+                                <div class="me-2">
+                                  <img src="{% static 'belediyeicons/insan-populasyonu.svg' %}" alt="İnsan Popülasyonu" width="24"/>
+                                </div>
+                                <h6 class="mb-0 fw-normal">İnsan Popülasyonu</h6>
+                              </div>
+                            </td>
+                            <td class="text-end pe-0 text-nowrap">
+                              <h6 class="mb-0">10</h6>
+                            </td>
+                            <td class="text-end pe-0">
+                              <span>28.3%</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td class="w-50 ps-0">
+                              <div class="d-flex justify-content-start align-items-center">
+                                <div class="me-2">
+                                  <img src="{% static 'belediyeicons/kirik-refus.svg' %}" alt="Kırık Refüj" width="24"/>
+                                </div>
+                                <h6 class="mb-0 fw-normal">Kırık Refüj</h6>
+                              </div>
+                            </td>
+                            <td class="text-end pe-0 text-nowrap">
+                              <h6 class="mb-0">6</h6>
+                            </td>
+                            <td class="text-end pe-0">
+                              <span>17.4%</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td class="w-50 ps-0">
+                              <div class="d-flex justify-content-start align-items-center">
+                                <div class="me-2">
+                                  <img src="{% static 'belediyeicons/park-ihlali.svg' %}" alt="Park İhlali" width="24"/>
+                                </div>
+                                <h6 class="mb-0 fw-normal">Park İhlali</h6>
+                              </div>
+                            </td>
+                            <td class="text-end pe-0 text-nowrap">
+                              <h6 class="mb-0">2</h6>
+                            </td>
+                            <td class="text-end pe-0">
+                              <span>14.6%</span>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="d-none d-lg-flex vehicles-progress-labels mb-6">
+                      <div class="vehicles-progress-label on-the-way-text" style="width: 39.7%;">Çöp</div>
+                      <div class="vehicles-progress-label unloading-text" style="width: 28.3%;">İnsan</div>
+                      <div class="vehicles-progress-label loading-text" style="width: 17.4%;">Refüj</div>
+                      <div class="vehicles-progress-label waiting-text text-nowrap" style="width: 14.6%;">Park İhlali</div>
+                    </div>
+                    <div class="vehicles-overview-progress progress rounded-3 mb-6" style="height: 46px;">
+                      <div class="progress-bar fw-medium text-start bg-lighter text-dark px-4 rounded-0" role="progressbar" style="width: 39.7%" aria-valuenow="39.7" aria-valuemin="0" aria-valuemax="100">39.7%</div>
+                      <div class="progress-bar fw-medium text-start bg-primary px-4" role="progressbar" style="width: 28.3%" aria-valuenow="28.3" aria-valuemin="0" aria-valuemax="100">28.3%</div>
+                      <div class="progress-bar fw-medium text-start text-bg-info px-2 px-sm-4" role="progressbar" style="width: 17.4%" aria-valuenow="17.4" aria-valuemin="0" aria-valuemax="100">17.4%</div>
+                      <div class="progress-bar fw-medium text-start snackbar text-paper px-1 px-sm-3 rounded-0 px-lg-4" role="progressbar" style="width: 14.6%" aria-valuenow="14.6" aria-valuemin="0" aria-valuemax="100">14.6%</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+              <!--/ Vehicles overview -->
+
+              <!-- Shipment statistics-->
+              <div class="col-xxl-6 col-lg-7">
+                <div class="card h-100">
+                  <div class="card-header d-flex align-items-center justify-content-between">
+                    <div class="card-title mb-0">
+                      <h5 class="mb-1">Aylık Analiz Raporu</h5>
+                       <!--<p class="card-subtitle">Total number of deliveries 23.8k</p>-->
+                    </div>
+                    <div class="btn-group">
+                      <button type="button" class="btn btn-label-primary">January</button>
+                      <button type="button" class="btn btn-label-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="visually-hidden">Toggle Dropdown</span>
+                      </button>
+                      <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="javascript:void(0);">January</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">February</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">March</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">April</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">May</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">June</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">July</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">August</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">September</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">October</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">November</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">December</a></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div id="shipmentStatisticsChart"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 order-5" style="margin-top: 0;">
+                <div class="card">
+                  <div class="card-header d-flex align-items-center justify-content-between">
+                    <div class="card-title mb-0">
+                      <h5 class="m-0 me-2">Son Tespit Edilen Sınıflar</h5>
+                    </div>
+                    <div class="dropdown">
+                      <button class="btn btn-text-secondary rounded-pill text-muted border-0 p-2 me-n1" type="button" id="routeVehicles" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="ti ti-dots-vertical ti-md text-muted"></i>
+                      </button>
+                      <div class="dropdown-menu dropdown-menu-end" aria-labelledby="routeVehicles">
+                        <a class="dropdown-item" href="javascript:void(0);">Excel Export</a>
+                        <a class="dropdown-item" href="javascript:void(0);">Pdf Export</a>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card-datatable table-responsive">
+                      <table class="datatables-basic table border-top">
+                      <thead>
+                        <tr>
+                          <th></th>
+                          <th class="w-2">ID</th>
+                          <th>Görüntü</th>
+                          <th>Tarih</th>
+                          <th>warnings</th>
+                          <th class="w-20">progress</th>
+                        </tr>
+                      </thead>
+                         <tbody>
+        {% for image in stream_images %}
+        <tr class="parent-row">
+          <td>
+            <button class="btn btn-sm btn-icon btn-expand" data-bs-toggle="collapse" data-bs-target="#detections-{{ image.id }}" aria-expanded="false">
+              <i class="ti ti-chevron-right"></i>
+            </button>
+          </td>
+          <td>{{ image.id }}</td>
+          <td>
+            <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#imageModal-{{ image.id }}">
+              <img src="{{ image.image.url }}" width="120" class="cursor-pointer" />
+            </a>
+            <div class="modal fade" id="imageModal-{{ image.id }}" tabindex="-1" aria-labelledby="imageModalLabel-{{ image.id }}" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered modal-xl">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Görüntü #{{ image.id }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body p-0">
+                    <div class="canvas-container" style="width: 100%; height: 100%; position: relative;">
+                      <canvas id="canvas-{{ image.id }}" style="width: 100%; height: auto;"></canvas>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td>{{ image.timestamp|date:"d.m.Y H:i:s" }}</td>
+          <td>{{ image.fulladdress }}</td>
+          <td>{{ image.deviceuuid }}</td>
+        </tr>
+        <tr class="collapse" id="detections-{{ image.id }}">
+          <td colspan="7">
+            <div class="p-3">
+              <h6 class="mb-3">Tespitler</h6>
+              <table class="table mb-0">
+                <thead>
+                  <tr>
+                    <th>Class Adı</th>
+                    <th>Doğruluk</th>
+                    <th>Kural Durumu</th>
+                    <th>Gönderim Türü</th>
+                    <th>Bildirim Durumu</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for detection in image.detections.all %}
+                  <tr>
+                    <td>{{ detection.class_name }}</td>
+                    <td>
+                      <div class="progress" style="height: 6px">
+                        <div class="progress-bar" style="width: {{ detection.confidence}}%"></div>
+                      </div>
+                      {{ detection.confidence|floatformat:2 }}
+                    </td>
+                    <td>
+                      dsdsd
+                    </td>
+                    <th>-</th>
+                    <td>-</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <!--/ On route vehicles Table -->
+            </div>
+          </div>
+          <div class="tab-pane fade" id="navs-pills-justified-profile" role="tabpanel">
+
+
+  <!-- Last Transaction -->
+  <div class="col-lg-12 mb-6">
+    <div class="card h-100">
+      <div class="table-responsive">
+        <table class="table table-borderless border-top">
+          <thead class="border-bottom">
+            <tr>
+              <th>Class Adı</th>
+              <th>Zaman</th>
+              <th>Durum</th>
+              <th>Görüntü</th>
+            </tr>
+          </thead>
+          <tbody>
+  <tr>
+    <td class="pt-5">
+      <div class="d-flex justify-content-start align-items-center">
+        <div class="d-flex flex-column">
+          <p class="mb-0 text-heading">Ağaç Sayısı</p>
+          <small class="text-body">Park ve Bahçeler</small>
+        </div>
+      </div>
+    </td>
+    <td class="pt-5">
+      <div class="d-flex flex-column">
+        <p class="mb-0 text-heading">Tespit Zamanı</p>
+        <small class="text-body text-nowrap">03 Şub 2025</small>
+      </div>
+    </td>
+    <td class="pt-5"><span class="badge bg-label-success">Bildirildi</span></td>
+    <td class="pt-5">
+      <img src="{% static 'belediyeicons/agac-durumu-2.svg' %}" width="24" alt="Ağaç Durumu"/>
+    </td>
+  </tr>
+
+  <tr>
+    <td class="pt-5">
+      <div class="d-flex justify-content-start align-items-center">
+        <div class="d-flex flex-column">
+          <p class="mb-0 text-heading">Araç Konumu</p>
+          <small class="text-body">Zabıta Müdürlüğü</small>
+        </div>
+      </div>
+    </td>
+    <td class="pt-5">
+      <div class="d-flex flex-column">
+        <p class="mb-0 text-heading">Tespit Zamanı</p>
+        <small class="text-body text-nowrap">03 Şub 2025</small>
+      </div>
+    </td>
+    <td class="pt-5"><span class="badge bg-label-warning">İşlemde</span></td>
+    <td class="pt-5">
+      <img src="{% static 'belediyeicons/arac-konumu.svg' %}" width="24" alt="Araç Konumu"/>
+    </td>
+  </tr>
+
+  <tr>
+    <td class="pt-5">
+      <div class="d-flex justify-content-start align-items-center">
+        <div class="d-flex flex-column">
+          <p class="mb-0 text-heading">Bozuk Yol10</p>
+          <small class="text-body">Fen İşleri Müdürlüğü</small>
+        </div>
+      </div>
+    </td>
+    <td class="pt-5">
+      <div class="d-flex flex-column">
+        <p class="mb-0 text-heading">Tespit Zamanı</p>
+        <small class="text-body text-nowrap">03 Şub 2025</small>
+      </div>
+    </td>
+    <td class="pt-5"><span class="badge bg-label-success">Bildirildi</span></td>
+    <td class="pt-5">
+      <img src="{% static 'belediyeicons/bozuk-yol.svg' %}" width="24" alt="Bozuk Yol5"/>
+    </td>
+  </tr>
+
+  <tr>
+    <td class="pt-5">
+      <div class="d-flex justify-content-start align-items-center">
+        <div class="d-flex flex-column">
+          <p class="mb-0 text-heading">Çevre Kirliliği</p>
+          <small class="text-body">Çevre Koruma Müdürlüğü</small>
+        </div>
+      </div>
+    </td>
+    <td class="pt-5">
+      <div class="d-flex flex-column">
+        <p class="mb-0 text-heading">Tespit Zamanı</p>
+        <small class="text-body text-nowrap">03 Şub 2025</small>
+      </div>
+    </td>
+    <td class="pt-5"><span class="badge bg-label-danger">Beklemede</span></td>
+    <td class="pt-5">
+      <img src="{% static 'belediyeicons/cevre-kirliligi.svg' %}" width="24" alt="Çevre Kirliliği"/>
+    </td>
+  </tr>
+</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+          </div>
+          <div class="tab-pane fade" id="navs-pills-justified-messages" role="tabpanel">
+            <p>Seçilmemiş</p>
+          </div>
+          <div class="tab-pane fade" id="navs-pills-justified-four" role="tabpanel">
+            <p>Oluştulmamış</p>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

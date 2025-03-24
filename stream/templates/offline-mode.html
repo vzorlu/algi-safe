@@ -1,0 +1,911 @@
+{% extends layout_path %}
+{% load static %}
+{% load i18n %}
+
+{% block vendor_css %}
+  <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.6.3/nouislider.min.css" rel="stylesheet" />
+  <style>
+    .timeline-icon {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: red;
+      border-radius: 50%;
+      top: -5px;
+    }
+    .timeline-label {
+      position: absolute;
+      top: 20px;
+      font-size: 12px;
+    }
+    .noUi-connect,
+    .progress-bar {
+      background-color: rgb(202, 155, 0) !important;
+    }
+    .marker {
+      transition: transform 0.3s ease-in-out;
+      cursor: pointer;
+    }
+    .detection-toggle {
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+    .confidence-slider {
+      width: 100%;
+      margin: 10px 0;
+    }
+    .video-container {
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      background-color: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #videoCanvas {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    /* New styles */
+    .main-container {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .control-panel {
+      background: white;
+      padding: 15px;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+
+    .video-container {
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+    }
+
+    .controls {
+      background: #fff;
+      padding: 10px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .controls button {
+      min-width: 44px;
+      height: 44px;
+      border-radius: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .controls button:hover {
+      transform: scale(1.05);
+    }
+
+    #map {
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+    }
+
+    .timeline {
+      background: white;
+      padding: 20px;
+      border-radius: 6px;
+      margin-top: 15px;
+    }
+
+    #videoSelector {
+      font-size: 16px;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid #dee2e6;
+    }
+
+    .detection-toggle {
+      background: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      margin: 5px 0;
+    }
+
+    .form-check-input {
+      width: 2.5em;
+      height: 1.25em;
+    }
+
+    #speedDisplay {
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 14px;
+    }
+
+    /* Slider customization */
+    .noUi-handle {
+      border-radius: 50%;
+      background: #ca9b00;
+      box-shadow: none;
+      border: none;
+      width: 20px !important;
+      height: 20px !important;
+      right: -10px !important;
+    }
+
+    .noUi-handle:before,
+    .noUi-handle:after {
+      display: none;
+    }
+  </style>
+{% endblock %}
+
+{% block vendor_js %}
+  <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.6.3/nouislider.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    <div class="main-container">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="control-panel">
+                    <select id="videoSelector" class="form-select mb-3">
+                        <option value="">Video Seçiniz</option>
+                        {% for video in videos %}
+                            <option value="{{ video.id }}"
+                                    data-video-url="{{ video.video_file.url|safe }}"
+                                    data-json-url="{{ video.coordinates_json.url|safe }}">
+                                {{ video.device_name }} - {{ video.created_at|date:"d/m/Y H:i" }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <div class="detection-controls">
+                        <div class="form-check form-switch detection-toggle">
+                            <input class="form-check-input" type="checkbox" id="showDetections" checked>
+                            <label class="form-check-label" for="showDetections">Nesneleri Göster</label>
+                        </div>
+                        <div class="form-check form-switch detection-toggle">
+                            <input class="form-check-input" type="checkbox" id="showGeneral" checked>
+                            <label class="form-check-label" for="showGeneral">Genel Nesneler</label>
+                        </div>
+                        <div class="form-check form-switch detection-toggle">
+                            <input class="form-check-input" type="checkbox" id="showBelediye" checked>
+                            <label class="form-check-label" for="showBelediye">Belediye Nesneler</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="control-panel">
+                    <label for="confidenceSlider" class="mb-2">Min. Güven Değeri: <span id="confidenceValue" class="badge bg-primary">0.5</span></label>
+                    <div id="confidenceSlider" class="confidence-slider"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="video-container mb-3">
+                    <canvas id="videoCanvas"></canvas>
+                </div>
+                <div class="controls mb-3">
+                    <button id="prevFrame" class="btn btn-secondary">
+                        <i class="fas fa-step-backward"></i>
+                    </button>
+                    <button id="playPause" class="btn btn-primary mx-2">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button id="nextFrame" class="btn btn-secondary">
+                        <i class="fas fa-step-forward"></i>
+                    </button>
+                </div>
+                <div class="timeline" style="position: relative;">
+                    <div id="timelineSlider"></div>
+                    <div id="timelineStart" class="timeline-label">0:00</div>
+                    <div id="timelineEnd" class="timeline-label" style="right: 0;"></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div id="map" style="height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block page_js %}
+<script>
+// Global state object - sadece bir kere tanımlanmalı
+const state = {
+    currentFrame: 0,
+    totalFrames: 0,
+    fps: 0,
+    isPlaying: false,
+    canvas: null,
+    ctx: null,
+    fabricCanvas: null,
+    locationData: [],
+    map: null,
+    marker: null,
+    socket: null,
+    lastFrameTime: 0,
+    detections: [],
+    confidenceThreshold: 0.5,
+    showDetections: true,
+    showGeneral: true,
+    showBelediye: true,
+    frameUpdatePending: false,
+    frameQueue: [],  // Add this new property
+    frameBuffer: [], // Add frame buffer
+    lastProcessedFrame: -1,
+    processingFrame: false,
+    frameSkipCount: null,  // FPS'e göre otomatik hesaplanacak
+    lastAnalyzedFrame: -1,
+    lastAnalyzedTime: 0
+};
+
+function initCanvas() {
+    try {
+        //console.log("Initializing canvas...");
+        // Get the canvas element
+        state.canvas = document.getElementById('videoCanvas');
+        if (!state.canvas) {
+            console.error('Canvas element not found');
+            return;
+        }
+
+        // Set initial canvas size
+        state.canvas.width = 640;  // Default width
+        state.canvas.height = 360; // Default height (16:9 ratio)
+
+        // Store original dimensions for scaling calculations
+        state.originalWidth = 640;
+        state.originalHeight = 360;
+        state.scale = 1;
+
+        // Check if fabric is defined
+        if (typeof fabric === 'undefined') {
+            console.error('Fabric.js library not loaded');
+            return;
+        }
+
+        // Initialize FabricJS canvas
+        state.fabricCanvas = new fabric.Canvas('videoCanvas', {
+            isDrawingMode: false,
+            selection: false
+        });
+
+        // Add resize event listener to handle responsive scaling
+        window.addEventListener('resize', resizeCanvas);
+
+        //console.log("Canvas initialized successfully");
+    } catch (error) {
+        console.error('Error initializing canvas:', error);
+    }
+}
+
+// Update your resizeCanvas function to properly constrain the video
+function resizeCanvas() {
+    if (!state.canvas || !state.fabricCanvas) return;
+
+    const videoContainer = document.querySelector('.video-container');
+    if (!videoContainer) return;
+
+    const containerWidth = videoContainer.offsetWidth;
+    const containerHeight = videoContainer.offsetHeight;
+
+    // If we don't have original dimensions yet, use default 16:9 ratio
+    if (!state.originalWidth || !state.originalHeight) {
+        const aspectRatio = 9/16;
+        const newWidth = containerWidth;
+        const newHeight = containerWidth * aspectRatio;
+
+        state.canvas.width = newWidth;
+        state.canvas.height = newHeight;
+        state.fabricCanvas.setWidth(newWidth);
+        state.fabricCanvas.setHeight(newHeight);
+        return;
+    }
+
+    // Calculate aspect ratios
+    const videoRatio = state.originalHeight / state.originalWidth;
+    const containerRatio = containerHeight / containerWidth;
+
+    let newWidth, newHeight;
+
+    // Determine dimensions to fit video fully inside container
+    if (containerRatio > videoRatio) {
+        newWidth = containerWidth;
+        newHeight = containerWidth * videoRatio;
+    } else {
+        newHeight = containerHeight;
+        newWidth = containerHeight / videoRatio;
+    }
+
+    // Calculate scale factor
+    state.scale = newWidth / state.originalWidth;
+
+    // Update canvas dimensions
+    state.canvas.width = newWidth;
+    state.canvas.height = newHeight;
+    state.canvas.style.width = `${newWidth}px`;
+    state.canvas.style.height = `${newHeight}px`;
+
+    // Update FabricJS canvas
+    state.fabricCanvas.setWidth(newWidth);
+    state.fabricCanvas.setHeight(newHeight);
+    state.fabricCanvas.setZoom(state.scale);
+}
+
+async function initMap() {
+    try {
+        //console.log("Initializing map...");
+        // Check if mapboxgl is defined
+        if (typeof mapboxgl === 'undefined') {
+            console.error('Mapbox GL JS not loaded');
+            return;
+        }
+
+        // Set access token
+        mapboxgl.accessToken = '{{ MAPBOX_ACCESS_TOKEN }}';
+        //console.log("MapBox token: ", mapboxgl.accessToken);
+
+        // Create map
+        state.map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v12',
+            center: [29.0994919, 40.9961213], // Note: Mapbox uses [lng, lat]
+            zoom: 15
+        });
+
+        // Create a marker element
+        const el = document.createElement('div');
+        el.className = 'marker';
+        el.style.width = '20px';
+        el.style.height = '20px';
+        el.style.backgroundImage = 'url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEyIDJMNCAxMGgxNkwxMiAyeiIgZmlsbD0iI2ZmMDAwMCIvPjwvc3ZnPg==)';
+        el.style.backgroundSize = '100%';
+
+        // Create the marker
+        state.marker = new mapboxgl.Marker(el)
+            .setLngLat([29.0994919, 40.9961213])
+            .addTo(state.map);
+
+        //console.log("Map initialized successfully");
+    } catch (error) {
+        console.error('Error initializing map:', error);
+    }
+}
+
+function playVideo() {
+    if (state.isPlaying) return;
+
+    state.isPlaying = true;
+    state.lastFrameTime = null;
+    state.frameUpdatePending = false;
+    state.frameQueue = [];
+
+    document.getElementById('playPause').innerHTML = '<i class="fas fa-pause"></i>';
+    requestAnimationFrame(updateFrame);
+}
+
+function updateFrame(timestamp) {
+    if (!state.isPlaying) return;
+
+    if (!state.lastFrameTime) {
+        state.lastFrameTime = timestamp;
+    }
+
+    const frameInterval = 1000 / state.fps;
+    const elapsed = timestamp - state.lastFrameTime;
+
+    if (elapsed >= frameInterval && !state.processingFrame) {
+        if (state.currentFrame < state.totalFrames - 1) {
+            state.processingFrame = true;
+            const nextFrame = state.currentFrame + 1;
+
+            // Her 5 saniyede bir analiz yap
+            const currentTime = nextFrame / state.fps;
+            const shouldAnalyze = Math.floor(currentTime / 5) > Math.floor(state.lastAnalyzedTime / 5) ||
+                                nextFrame === 0 ||
+                                nextFrame === state.totalFrames - 1;
+
+            if (shouldAnalyze) {
+                state.lastAnalyzedTime = currentTime;
+            }
+
+            loadFrame(nextFrame, shouldAnalyze);
+            state.lastFrameTime = timestamp;
+        } else {
+            pauseVideo();
+            return;
+        }
+    }
+
+    requestAnimationFrame(updateFrame);
+}
+
+function loadFrame(frameNumber, analyze = false) {
+    try {
+        if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
+            initWebSocket();
+            return;
+        }
+
+        const videoSelector = document.getElementById('videoSelector');
+        if (!videoSelector || !videoSelector.value) {
+            console.error('No video selected');
+            return;
+        }
+
+        state.socket.send(JSON.stringify({
+            video_id: videoSelector.value,
+            frame_number: frameNumber,
+            analyze: analyze
+        }));
+
+    } catch (error) {
+        console.error('Error loading frame:', error);
+        state.frameUpdatePending = false;
+    }
+}
+
+// Add initializeTimeline function that was missing
+function initializeTimeline() {
+    const timelineSlider = document.getElementById('timelineSlider');
+    if (timelineSlider.noUiSlider) {
+        timelineSlider.noUiSlider.destroy();
+    }
+
+    noUiSlider.create(timelineSlider, {
+        start: [0],
+        connect: true,
+        range: {
+            'min': 0,
+            'max': state.totalFrames - 1
+        },
+        step: 1
+    });
+
+    timelineSlider.noUiSlider.on('update', function(values, handle) {
+        const frameNumber = Math.floor(values[handle]);
+        if (frameNumber !== state.currentFrame) {
+            state.currentFrame = frameNumber;
+            loadFrame(frameNumber);
+        }
+
+        // Update time labels
+        const time = frameNumber / state.fps;
+        document.getElementById('timelineStart').textContent = formatTime(time);
+    });
+
+    // Set end time label
+    document.getElementById('timelineEnd').textContent =
+        formatTime((state.totalFrames - 1) / state.fps);
+}
+
+// Add formatTime helper function
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+function updateMapLocation(timestamp) {
+    if (state.locationData.length > 0) {
+        const videoStartTime = new Date(state.locationData[0].timestamp).getTime();
+        const currentTimestamp = new Date(videoStartTime + (timestamp * 1000));
+
+        const locationIndex = state.locationData.findIndex(loc => {
+            const locTime = new Date(loc.timestamp);
+            return locTime >= currentTimestamp;
+        });
+
+        if (locationIndex !== -1) {
+            const location = state.locationData[locationIndex];
+            const newPosition = [
+                parseFloat(location.longitude),
+                parseFloat(location.latitude)
+            ];
+
+            // Update marker position
+            state.marker.setLngLat(newPosition);
+
+            // Update marker rotation
+            const el = state.marker.getElement();
+            el.style.transform = `rotate(${location.heading || 0}deg)`;
+
+            // Update map center with animation
+            state.map.easeTo({
+                center: newPosition,
+                duration: 1000
+            });
+
+            // Update speed display
+            document.getElementById('speedDisplay').textContent =
+                `Hız: ${(parseFloat(location.speed) || 0).toFixed(1)} km/s`;
+        }
+    }
+}
+
+// Update the drawDetections function to use the provided scale factors
+function drawDetections(scaleX, scaleY) {
+    if (!state.showDetections || !state.detections) return;
+
+    // Loop through all detections
+    state.detections.forEach(detection => {
+        // Skip if confidence is below threshold
+        if (detection.confidence < state.confidenceThreshold) return;
+
+        // Skip if source filter is applied
+        if ((detection.source === 'general' && !state.showGeneral) ||
+            (detection.source === 'belediye' && !state.showBelediye)) {
+            return;
+        }
+
+        // Get coordinates in the scaled canvas space
+        const x_min = detection.x_min * scaleX;
+        const y_min = detection.y_min * scaleY;
+        const width = (detection.x_max - detection.x_min) * scaleX;
+        const height = (detection.y_max - detection.y_min) * scaleY;
+
+        // Create rectangle for bounding box with scaled coordinates
+        const rect = new fabric.Rect({
+            left: x_min,
+            top: y_min,
+            width: width,
+            height: height,
+            stroke: detection.source === 'belediye' ? '#FF0000' : '#00FF00',
+            strokeWidth: 2,
+            fill: 'rgba(0,0,0,0)',
+            selectable: false,
+            evented: false
+        });
+
+        // Create text for class name - scale font size based on height
+        const fontSize = Math.max(12, 16 * scaleY); // Ensure text isn't too small
+
+        const displayName = detection.turkish_name || detection.class_name;
+        const text = new fabric.Text(`${displayName} (${Math.round(detection.confidence * 100)}%)`, {
+            left: x_min,
+            top: Math.max(0, y_min - fontSize - 4), // Position above bounding box, but not off canvas
+            fontSize: fontSize,
+            fill: detection.source === 'belediye' ? '#FF0000' : '#00FF00',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            padding: 3,
+            selectable: false,
+            evented: false
+        });
+
+        // Add objects to canvas
+        state.fabricCanvas.add(rect);
+        state.fabricCanvas.add(text);
+    });
+}
+
+// Add event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        // Initialize components in correct order
+        initCanvas();
+
+        // Call resize function to set initial size
+        setTimeout(resizeCanvas, 100);
+
+        initMap().then(() => {
+            //console.log('Map initialized');
+            initWebSocket();
+        }).catch(error => {
+            console.error('Error initializing map:', error);
+        });
+
+        // Add speed display div if not exists
+        if (!document.getElementById('speedDisplay')) {
+            const speedDiv = document.createElement('div');
+            speedDiv.id = 'speedDisplay';
+            speedDiv.className = 'mb-2';
+            document.querySelector('.controls').after(speedDiv);
+        }
+    } catch (error) {
+        console.error('Error during initialization:', error);
+    }
+
+    // Add event listeners for controls
+    document.getElementById('playPause').addEventListener('click', function() {
+        if (state.isPlaying) {
+            pauseVideo();
+        } else {
+            playVideo();
+        }
+    });
+
+    document.getElementById('prevFrame').addEventListener('click', function() {
+        if (state.currentFrame > 0) {
+            state.currentFrame--;
+            loadFrame(state.currentFrame);
+        }
+    });
+
+    document.getElementById('nextFrame').addEventListener('click', function() {
+        if (state.currentFrame < state.totalFrames - 1) {
+            state.currentFrame++;
+            loadFrame(state.currentFrame);
+        }
+    });
+
+    // Video selector event
+    document.getElementById('videoSelector').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value) {
+            const jsonUrl = selectedOption.dataset.jsonUrl;
+
+            // Reset state
+            state.currentFrame = 0;
+            state.totalFrames = 0;
+            state.fps = 0;
+            if (state.isPlaying) pauseVideo();
+
+            // Load JSON data
+            fetch(jsonUrl)
+                .then(response => response.json())
+                .then(data => {
+                    state.locationData = data.location_history;
+                    if (state.locationData.length > 0) {
+                        const firstLocation = state.locationData[0];
+                        state.map.setCenter({
+                            lat: parseFloat(firstLocation.latitude),
+                            lng: parseFloat(firstLocation.longitude)
+                        });
+                    }
+                    // Load first frame
+                    loadFrame(0);
+                })
+                .catch(error => console.error('Error loading JSON:', error));
+        }
+    });
+
+    // Initialize confidence slider
+    const confidenceSlider = document.getElementById('confidenceSlider');
+    noUiSlider.create(confidenceSlider, {
+        start: [0.5],
+        connect: true,
+        range: {
+            'min': 0,
+            'max': 1
+        },
+        step: 0.01
+    });
+
+    confidenceSlider.noUiSlider.on('update', function(values, handle) {
+        const value = parseFloat(values[handle]);
+        state.confidenceThreshold = value;
+        document.getElementById('confidenceValue').textContent = value.toFixed(2);
+        // Redraw detections if we have a current frame
+        if (state.detections.length > 0) {
+            state.fabricCanvas.clear();
+            // Re-add the image
+            const objects = state.fabricCanvas.getObjects();
+            if (objects.length > 0 && objects[0] instanceof fabric.Image) {
+                state.fabricCanvas.add(objects[0]);
+            }
+            drawDetections();
+        }
+    });
+
+    // Detection toggle switches
+    document.getElementById('showDetections').addEventListener('change', function() {
+        state.showDetections = this.checked;
+        state.fabricCanvas.clear();
+        // Re-add the image
+        const objects = state.fabricCanvas.getObjects();
+        if (objects.length > 0 && objects[0] instanceof fabric.Image) {
+            state.fabricCanvas.add(objects[0]);
+        }
+        drawDetections();
+    });
+
+    document.getElementById('showGeneral').addEventListener('change', function() {
+        state.showGeneral = this.checked;
+        state.fabricCanvas.clear();
+        // Re-add the image
+        const objects = state.fabricCanvas.getObjects();
+        if (objects.length > 0 && objects[0] instanceof fabric.Image) {
+            state.fabricCanvas.add(objects[0]);
+        }
+        drawDetections();
+    });
+
+    document.getElementById('showBelediye').addEventListener('change', function() {
+        state.showBelediye = this.checked;
+        state.fabricCanvas.clear();
+        // Re-add the image
+        const objects = state.fabricCanvas.getObjects();
+        if (objects.length > 0 && objects[0] instanceof fabric.Image) {
+            state.fabricCanvas.add(objects[0]);
+        }
+        drawDetections();
+    });
+});
+
+// Update the WebSocket initialization with better reconnection logic
+function initWebSocket() {
+    try {
+        //console.log("Initializing WebSocket...");
+        if (state.socket) {
+            state.socket.close();
+        }
+
+        // Use proper WebSocket URL format with ws:// or wss:// protocol
+        const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+        const wsURL = `${wsProtocol}${window.location.host}/ws/video/`;
+        //console.log("WebSocket URL: ", wsURL);
+
+        state.socket = new WebSocket(wsURL);
+
+        state.socket.onopen = function() {
+            //console.log('WebSocket connection established');
+            // Reset reconnection attempts on successful connection
+            state.reconnectAttempts = 0;
+
+            // Load the current frame if video is selected
+            const videoSelector = document.getElementById('videoSelector');
+            if (videoSelector && videoSelector.value) {
+                loadFrame(state.currentFrame || 0);
+            }
+        };
+
+        // Update the onmessage handler to correctly size the image
+        state.socket.onmessage = function(e) {
+            try {
+                const data = JSON.parse(e.data);
+                if (data.type === 'frame' && data.status === 'success') {
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            state.originalWidth = data.original_width;
+                            state.originalHeight = data.original_height;
+                            state.lastProcessedFrame = data.frame_number;
+
+                            if (!state.totalFrames) {
+                                state.totalFrames = data.total_frames;
+                                state.fps = data.fps;
+                                initializeTimeline();
+                            }
+
+                            // Eğer frame analiz edilmişse, detectionları güncelle
+                            if (data.analyzed) {
+                                state.detections = data.detections || [];
+                                state.lastAnalyzedFrame = data.frame_number;
+                            } else {
+                                // Analiz edilmemişse, son analiz edilen frame'in detectionlarını kullan
+                                if (state.lastAnalyzedFrame !== -1) {
+                                    // Mevcut detectionları koru
+                                } else {
+                                    state.detections = [];
+                                }
+                            }
+
+                            displayFrame(img, data);
+                            state.processingFrame = false;
+
+                        } catch (err) {
+                            console.error('Error processing frame:', err);
+                            state.processingFrame = false;
+                        }
+                    };
+                    img.src = 'data:image/jpeg;base64,' + data.frame;
+                }
+            } catch (err) {
+                console.error('Error parsing WebSocket message:', err);
+                state.processingFrame = false;
+            }
+        };
+
+        state.socket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+        };
+
+        state.socket.onclose = function(event) {
+            //console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
+
+            // Implement exponential backoff for reconnection
+            if (!state.reconnectAttempts) {
+                state.reconnectAttempts = 1;
+            } else {
+                state.reconnectAttempts++;
+            }
+
+            const maxDelay = 30000; // 30 seconds
+            const delay = Math.min(1000 * Math.pow(2, state.reconnectAttempts - 1), maxDelay);
+
+            //console.log(`Attempting to reconnect in ${delay/1000} seconds...`);
+            setTimeout(initWebSocket, delay);
+        };
+    } catch (error) {
+        console.error('Error initializing WebSocket:', error);
+        setTimeout(initWebSocket, 5000);
+    }
+}
+
+// Add new function to handle frame display
+function displayFrame(img, data) {
+    state.fabricCanvas.clear();
+
+    const videoContainer = document.querySelector('.video-container');
+    const containerWidth = videoContainer.offsetWidth;
+    const containerHeight = videoContainer.offsetHeight;
+
+    // Calculate dimensions
+    const videoRatio = state.originalHeight / state.originalWidth;
+    const containerRatio = containerHeight / containerWidth;
+
+    let displayWidth, displayHeight;
+    if (containerRatio > videoRatio) {
+        displayWidth = containerWidth;
+        displayHeight = containerWidth * videoRatio;
+    } else {
+        displayHeight = containerHeight;
+        displayWidth = containerHeight / videoRatio;
+    }
+
+    const scale = displayWidth / state.originalWidth;
+
+    // Update canvas dimensions
+    state.canvas.width = displayWidth;
+    state.canvas.height = displayHeight;
+    state.fabricCanvas.setWidth(displayWidth);
+    state.fabricCanvas.setHeight(displayHeight);
+
+    // Add image to canvas
+    const fabricImg = new fabric.Image(img, {
+        left: 0,
+        top: 0,
+        width: state.originalWidth,
+        height: state.originalHeight,
+        scaleX: scale,
+        scaleY: scale,
+        selectable: false,
+        evented: false,
+        objectCaching: false
+    });
+
+    state.fabricCanvas.add(fabricImg);
+    state.fabricCanvas.sendToBack(fabricImg);
+
+    // Update other elements
+    state.detections = data.detections || [];
+    drawDetections(scale, scale);
+    updateMapLocation(data.frame_number / state.fps);
+    state.currentFrame = data.frame_number;
+
+    const timelineSlider = document.getElementById('timelineSlider');
+    if (timelineSlider.noUiSlider) {
+        timelineSlider.noUiSlider.set(data.frame_number);
+    }
+
+    state.fabricCanvas.renderAll();
+}
+</script>
+{% endblock %}
+{% endblock %}

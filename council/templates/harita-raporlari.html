@@ -1,0 +1,3827 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Harita Raporları{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet" >
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+  .modal-header {
+    display: none;
+}
+.info-data {
+  padding: 10px;
+  border: 1px solid #aaaaaa;
+  border-radius: 4px;
+  background: #f8f7fa;
+}
+  .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    background-color: transparent;
+    border: none;
+    border-right: 1px solid #aaaaaa00;
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+    color: transparent;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: bold;
+    padding: 4px;
+    position: absolute;
+    right: 3px;
+    top: 3px;
+  }
+  #dynamicIconContainer {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 10px;
+        padding: 10px 0;
+    }
+    .ortala {
+        position: relative;
+        width: 100%;
+    }
+    .map-icon {
+        display: flex;
+        align-items: center;
+        padding: 5px 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+        cursor: pointer;
+        min-width: 120px;
+    }
+    .map-icon.active {
+        background-color: #e3f2fd;
+        border-color: #90caf9;
+    }
+    .map-icon img {
+        width: 24px;
+        height: 24px;
+        margin-right: 8px;
+    }
+    .icon-title {
+        font-size: 14px;
+        white-space: nowrap;
+    }
+    /* Style for filtered markers */
+    .filtered-marker {
+        z-index: 100 !important;
+    }
+
+    .d-flex.gap-2 button {
+      height: 38px;
+    }
+
+    .canvas-container {
+      background-color: #000000;
+      margin: 0 auto;
+  }
+
+    .filtered-marker::after {
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        background-color: rgba(0, 123, 255, 0.3);
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.8; }
+        50% { transform: scale(1.1); opacity: 0.5; }
+        100% { transform: scale(1); opacity: 0.8; }
+    }
+    .select2-option-icon {
+        width: 20px;
+        height: 20px;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+
+    .select2-container .badge {
+        font-size: 0.75em;
+        padding: 0.25em 0.6em;
+        border-radius: 10px;
+    }
+
+    .select2-selection__rendered .badge {
+        margin-left: 5px;
+    }
+    #detectionCanvas {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .detection-icon {
+        width: 24px;
+        height: 24px;
+        margin-right: 4px;
+    }
+
+    .modal-xl {
+        max-width: 90%;
+    }
+
+    .detection-info {
+      background-color: #f8f9fa;
+      padding: 0 10px;
+      border-radius: 5px;
+      margin-top: 5px;
+    }
+    .detection-icon {
+        width: 24px;
+        height: 24px;
+        margin-right: 4px;
+        object-fit: contain;
+    }
+
+    .detection-icon[src$="default.png"] {
+        opacity: 0.5;
+    }
+
+    #detectionCanvas {
+        max-width: 100%;
+        height: auto !important;
+    }
+
+    .modal-fullscreen {
+        width: 100vw;
+        max-width: 100vw;
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+    }
+
+    .modal-fullscreen .modal-content {
+        height: 100vh;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .modal-fullscreen .modal-body {
+        overflow-y: auto;
+        padding: 0;
+    }
+
+    .canvas-container {
+        height: calc(100vh - 20px) !important;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #000;
+    }
+
+    #detectionCanvas {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+    .detection-turkish {
+        cursor: pointer;
+        transition: color 0.2s ease, font-weight 0.2s ease;
+    }
+
+    .detection-turkish:hover {
+        color: #007bff;
+        font-weight: bold;
+    }
+
+    .detection-item {
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+        cursor: pointer;
+    }
+
+    .detection-item.highlight {
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Canvas detection highlight styles */
+    .detection-box {
+        transition: stroke-width 0.2s ease, stroke-opacity 0.2s ease;
+    }
+
+    .detection-box.highlight {
+        stroke-width: 3 !important;
+        stroke-opacity: 1 !important;
+    }
+
+  /* Navigation arrows styling */
+  .modal-nav-arrows {
+    position: absolute;
+    top: 50%;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    z-index: 1060;
+  }
+
+  .modal-nav-arrow {
+    background-color: rgba(255, 255, 255, 0.8);
+    color: #333;
+    border: none;
+    border-radius: 50%;
+    font-size: 24px;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+  }
+
+  .modal-nav-arrow:hover {
+    background-color: rgba(255, 255, 255, 1);
+    transform: scale(1.1);
+  }
+
+  .modal-nav-arrow:active {
+    transform: scale(0.95);
+  }
+
+  .modal-nav-arrow.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .modal-nav-prev {
+    margin-left: 15px;
+  }
+
+  .modal-nav-next {
+    margin-right: 15px;
+  }
+
+  .modal-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1070;
+    color: white;
+    font-size: 24px;
+  }
+
+  .modal-loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Add new styles for image loading indicator */
+  .canvas-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    z-index: 10;
+  }
+
+  .canvas-loading-spinner {
+    border: 5px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+  }
+
+  .canvas-loading-text {
+    margin-top: 10px;
+    font-size: 14px;
+  }
+
+  .canvas-error {
+    padding: 20px;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 5px;
+    color: #721c24;
+    text-align: center;
+    width: 80%;
+    max-width: 500px;
+  }
+
+  #detectionCanvas {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+  }
+
+  /* Improved Select2 multiselect styling */
+  .select2-container--default .select2-selection--multiple {
+      height: 38px !important;
+      overflow: hidden;
+  }
+
+  .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+      height: 38px;
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: thin;
+      white-space: nowrap;
+      padding-bottom: 5px;
+  }
+
+  .select2-container--default .select2-selection--multiple .select2-selection__choice {
+      flex: 0 0 auto;
+      margin-top: 3px !important;
+  }
+
+  /* Hide vertical scrollbar */
+  .select2-container--default .select2-selection--multiple .select2-selection__rendered::-webkit-scrollbar {
+      height: 4px;
+  }
+
+  .select2-container--default .select2-selection--multiple .select2-selection__rendered::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+  }
+
+  .select2-container--default .select2-selection--multiple .select2-search--inline {
+      flex: 0 0 auto;
+      margin-top: 3px !important;
+  }
+
+  .select2-container--default .select2-selection--multiple .select2-search--inline .select2-search__field {
+      margin-top: 0 !important;
+      height: 23px;
+  }
+
+  .filter-badge {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+    margin: 0.25rem;
+    border-radius: 1rem;
+    background-color: #e9ecef;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-badge .remove {
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.filter-badge .remove:hover {
+    opacity: 1;
+}
+
+.statistics-row {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.quick-filter {
+    transition: all 0.2s;
+}
+
+.quick-filter:hover {
+    transform: translateY(-1px);
+}
+
+/* Address autocomplete styles */
+.address-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.suggestion-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover {
+    background-color: #f8f9fa;
+}
+
+.suggestion-area {
+    font-weight: bold;
+    color: #666;
+}
+
+.suggestion-address {
+    font-size: 0.9em;
+    color: #888;
+}
+
+.navigation-line {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.navigation-path {
+    stroke: #2196F3;
+    stroke-width: 3;
+    stroke-dasharray: 5, 5;
+    fill: none;
+    filter: drop-shadow(0 0 3px rgba(33, 150, 243, 0.5));
+}
+
+.navigation-arrow {
+    fill: #2196F3;
+    filter: drop-shadow(0 0 2px rgba(33, 150, 243, 0.5));
+}
+
+.navigation-highlight {
+    stroke: rgba(33, 150, 243, 0.2);
+    stroke-width: 12;
+    fill: none;
+}
+
+.marker-icons {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  max-width: 100px;
+  position: absolute;
+}
+
+/* Hide default marker elements */
+.mapboxgl-marker svg,
+.mapboxgl-marker canvas {
+    display: none !important;
+}
+
+.mapboxgl-marker {
+    cursor: pointer;
+    position: absolute;
+    top: 0;
+    left: 0;
+    will-change: transform;
+}
+
+.marker-icons {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    max-width: 100px;
+    /* CSS özelliklerini sıfırlıyoruz */
+    position: relative;
+}
+
+.mapboxgl-marker {
+    /* Pozisyonlamayı JavaScript'te yapacağız */
+    cursor: pointer;
+}
+
+</style>
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+<!-- Remove Hammer.js completely -->
+<script>
+// Initialize an empty iconMappings object that will be filled via API
+let iconMappings = {};
+let activeFilter = null;
+let detailCanvas = null;
+// Add a variable to track the currently open popup
+let currentOpenPopup = null;
+
+// Initialize global detection navigation state
+let currentDetectionIndex = 0;
+let allDetections = [];
+let isLoadingDetection = false;
+
+// Fetch icon mappings from the API when document loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Fix the URL path to include the proper namespace
+    fetch('/api/stream/icon-mappings/')
+        .then(response => response.json())
+        .then(data => {
+            iconMappings = data.mappings;
+            populateCouncilFilterSelect();
+        })
+        .catch(error => {
+            console.error('Error fetching icon mappings:', error);
+        });
+
+    // Initialize the council filter select with proper event handling
+    $('#councilFilterSelect').on('change', function() {
+        let filterId = $(this).val();
+
+        // Remove empty values from the list
+        filterId = filterId.filter(id => id.trim() !== '');
+
+        // Reset all markers and icons to default state first
+        resetAllMarkers();
+
+        if (filterId.length > 0) {
+            activeFilter = filterId;
+
+            // Show loading indicator
+            const loadingIndicator = document.getElementById('mapLoadingIndicator');
+            if (loadingIndicator) loadingIndicator.style.display = 'block';
+
+            // Use the correct API endpoint
+            fetch(`/api/stream/filtered-detections/?detection_types[]=${encodeURIComponent(filterId)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+
+                        highlightFilteredIcon(filterId);
+
+                        // Create markers for each result with coordinates
+                        const bounds = new mapboxgl.LngLatBounds();
+                        let hasValidMarkers = false;
+
+                        data.results.forEach(item => {
+                            // Improved coordinate validation and parsing
+                            let lat = null, lng = null;
+
+                            // Try different ways the coordinates might be available
+                            if (item.location && typeof item.location === 'object') {
+                                lat = parseCoordinate(item.location.lat || item.location.latitude || item.lat);
+                                lng = parseCoordinate(item.location.lng || item.location.longitude || item.long || item.lng);
+                            } else {
+                                lat = parseCoordinate(item.lat || item.lang || item.latitude);
+                                lng = parseCoordinate(item.lng || item.long || item.longitude);
+                            }
+
+                            // Skip if coordinates are invalid
+                            if (isNaN(lat) || isNaN(lng)) {
+                                console.warn("Invalid coordinates for item:", item);
+                                return;
+                            }
+
+                            const allDetections = item.detection_classes || [{
+                                class_name: item.class_name,
+                                x_min: parseCoordinate(item.x_min) || 0,
+                                y_min: parseCoordinate(item.y_min) || 0,
+                                x_max: parseCoordinate(item.x_max) || 0,
+                                y_max: parseCoordinate(item.y_max) || 0,
+                                confidence: parseCoordinate(item.confidence) || 0.0
+                            }];
+
+                            // Check if any detection has invalid coordinates and log it
+                            for (const detection of allDetections) {
+                                const x_min = parseCoordinate(detection.x_min);
+                                const y_min = parseCoordinate(detection.y_min);
+                                const x_max = parseCoordinate(detection.x_max);
+                                const y_max = parseCoordinate(detection.y_max);
+
+                                if (isNaN(x_min) || isNaN(y_min) || isNaN(x_max) || isNaN(y_max)) {
+                                    console.warn("Invalid detection coordinates:", {
+                                        detection_class: detection.class_name,
+                                        coordinates: { x_min, y_min, x_max, y_max }
+                                    });
+                                    // Don't return - still create marker even with invalid detection coordinates
+                                }
+                            }
+
+                            // Format image URL correctly
+                            let imageUrl = item.image_url || '';
+                            if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+                                imageUrl = '/' + imageUrl;
+                            }
+
+                            const detectionData = {
+                                id: item.id,
+                                timestamp: item.timestamp,
+                                class_name: item.class_name,
+                                image_url: imageUrl,
+                                fulladdress: item.fulladdress,
+                                all_detections: allDetections
+                            };
+
+                            // Create marker with properly formatted data
+                            const marker = new mapboxgl.Marker({
+                                element: iconContainer  // Use the iconContainer directly as marker element
+                            })
+                            .setLngLat([lng, lat])
+                            .setPopup(new mapboxgl.Popup({ offset: 25 })
+                                .setHTML(createPopupContent(detectionData, allDetections)))
+                            .addTo(mapInstance);
+
+                            // Save marker reference for later cleanup
+                            mapInstance._markers = mapInstance._markers || [];
+                            mapInstance._markers.push(marker);
+
+                            // Add to bounds for map fitting
+                            bounds.extend([lng, lat]);
+                            hasValidMarkers = true;
+                        });
+
+                        // Fit map to show all markers if we have valid ones
+                        if (hasValidMarkers && !bounds.isEmpty()) {
+                            mapInstance.fitBounds(bounds, {
+                                padding: 50,
+                                maxZoom: 15
+                            });
+                        }
+
+                        // Hide loading indicator
+                        if (loadingIndicator) loadingIndicator.style.display = 'none';
+                    } else {
+                        console.error("API returned unsuccessful response:", data);
+                        if (loadingIndicator) loadingIndicator.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching council filter:', error);
+                    if (loadingIndicator) loadingIndicator.style.display = 'none';
+                });
+        } else {
+            // If no filter selected, reset the active filter
+            resetFiltering();
+        }
+    });
+});
+
+// Function to populate the filter select with options from iconMappings
+function populateCouncilFilterSelect() {
+    const councilFilterSelect = document.getElementById('councilFilterSelect');
+    if (councilFilterSelect) {
+        // Clear existing options first
+        while (councilFilterSelect.options.length > 1) {
+            councilFilterSelect.remove(1);
+        }
+
+        // Fetch ClassData options from the API
+        fetch('/api/stream/class-data/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.classes) {
+                    // Add options from ClassData with counts from DB
+                    data.classes.forEach(classData => {
+                        const option = document.createElement('option');
+                        option.value = classData.Name; // English name as value
+                        const countText = classData.count ? ` (${classData.count})` : "";
+                        option.textContent = classData.Turkish + countText;
+                        option.dataset.count = classData.count || 0;
+                        councilFilterSelect.appendChild(option);
+                    });
+                } else {
+                    console.error('Error fetching ClassData: Invalid response format');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching ClassData:', error);
+                // Fallback to iconMappings if API fails
+                Object.keys(iconMappings).forEach(key => {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = iconMappings[key].turkish;
+                    option.dataset.count = 0;
+                    councilFilterSelect.appendChild(option);
+                });
+            });
+    }
+}
+
+// Function to highlight only the filtered icon
+function highlightFilteredIcon(filterId) {
+    const icons = document.querySelectorAll('.map-icon');
+    icons.forEach(icon => {
+        const imgElement = icon.querySelector('img');
+        const iconName = imgElement ? imgElement.alt : '';
+        const checkbox = icon.querySelector('.icon-checkbox');
+
+        if (iconName === filterId || (imgElement && imgElement.src.includes(filterId))) {
+            icon.classList.add('active');
+            if (checkbox) checkbox.checked = true;
+        } else {
+            icon.classList.remove('active');
+            if (checkbox) checkbox.checked = false;
+        }
+    });
+}
+
+
+// Function to reset all markers to default state
+function resetAllMarkers() {
+    // Remove all existing markers from the map
+    const markers = document.querySelectorAll('.mapboxgl-marker');
+    markers.forEach(marker => {
+        marker.remove(); // Remove marker from DOM completely
+    });
+
+    // Clear any existing marker references
+    if (mapInstance) {
+        // If you're storing markers in an array, clear it
+        mapInstance._markers = mapInstance._markers || [];
+        mapInstance._markers.forEach(marker => marker.remove());
+        mapInstance._markers = [];
+    }
+}
+
+// Add event listener for the "Show All" checkbox
+document.addEventListener('DOMContentLoaded', function() {
+    const showAllCheckbox = document.getElementById('showAllDetectionsCheck');
+    if (showAllCheckbox) {
+        showAllCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                // Reset council filter dropdown
+                const councilFilterSelect = document.getElementById('councilFilterSelect');
+
+                // Reset all markers and icons
+                resetAllMarkers();
+
+                // Reset active filter
+                activeFilter = null;
+
+                // Set all icons to active
+                document.querySelectorAll('.map-icon').forEach(icon => {
+                    icon.classList.add('active');
+                    const checkbox = icon.querySelector('.icon-checkbox');
+                    if (checkbox) checkbox.checked = true;
+                });
+            }
+        });
+    }
+});
+
+// Update the Mapbox access token
+mapboxgl.accessToken = "{{ mapbox_access_token }}";
+
+// Store map instance globally
+let mapInstance = null;
+
+
+document.addEventListener('DOMContentLoaded', function () {
+  const mapContainer = document.getElementById('layerControl');
+
+    if (!mapContainer) {
+        console.error('Map container not found');
+        return;
+    }
+
+    try {
+        mapInstance = new mapboxgl.Map({
+            container: 'layerControl',
+            style: 'mapbox://styles/mapbox/streets-v12',
+            center: [29.1239, 40.9830],
+            zoom: 15
+        });
+
+        // Add error handling
+        mapInstance.on('error', function(e) {
+            console.error('Map error:', e);
+        });
+
+        // Initialize the rest of your map functionality here
+        mapInstance.on('load', function() {
+            // Create bounds instance here
+            const bounds = new mapboxgl.LngLatBounds();
+            let hasValidCoordinates = false;
+
+            // Add console logging for all stream images
+            console.group('Stream Images Data:');
+
+            {% for image in stream_images %}
+            {% if image.lang and image.long and image.detections.all %}
+
+                const latitude_{{ image.id }} = parseCoordinate("{{ image.lang }}");
+                const longitude_{{ image.id }} = parseCoordinate("{{ image.long }}");
+
+                if (!isNaN(latitude_{{ image.id }}) && !isNaN(longitude_{{ image.id }})) {
+                    const coordinates = [longitude_{{ image.id }}, latitude_{{ image.id }}];
+
+                    const detectionData = {
+                        id: "{{ image.id }}",
+                        timestamp: "{{ image.timestamp|date:'Y-m-d H:i:s' }}",
+                        detections: "{{ image.detec }}",
+                        department_id: "{{ image.department_id }}",
+                        image_url: "{{ image.image.url }}",
+                        fulladdress: "{{ image.fulladdress }}",
+                        detection_classes: [
+                            {% for detection in image.detections.all %}
+                            {
+                                class_name: "{{ detection.class_name }}",
+                                confidence: {{ detection.confidence|stringformat:".6f"|safe }},
+                                x_min: parseCoordinate("{{ detection.x_min|default:"null" }}"),
+                                y_min: parseCoordinate("{{ detection.y_min|default:"null" }}"),
+                                x_max: parseCoordinate("{{ detection.x_max|default:"null" }}"),
+                                y_max: parseCoordinate("{{ detection.y_max|default:"null" }}")
+                            }{% if not forloop.last %},{% endif %}
+                            {% endfor %}
+                        ]
+                    };
+
+                    const marker = createMarkerWithPopup(detectionData, coordinates);
+                    marker.addTo(mapInstance);
+
+                    // Store marker reference
+                    mapInstance._markers = mapInstance._markers || [];
+                    mapInstance._markers.push(marker);
+
+                    bounds.extend(coordinates);
+                    hasValidCoordinates = true;
+                }
+            {% endif %}
+            {% endfor %}
+
+            console.groupEnd();
+
+            // Fit bounds if we have valid coordinates
+            if (hasValidCoordinates && !bounds.isEmpty()) {
+                mapInstance.fitBounds(bounds, {
+                    padding: 50,
+                    maxZoom: 15
+                });
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing map:', error);
+    }
+
+    const checkboxes = document.querySelectorAll('.icon-checkbox');
+
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const parentIcon = this.closest('.map-icon');
+            if (this.checked) {
+                parentIcon.classList.add('active');
+            } else {
+                parentIcon.classList.remove('active');
+            }
+        });
+    });
+    const mapIcons = document.querySelectorAll('.map-icon');
+
+    mapIcons.forEach(icon => {
+        icon.addEventListener('click', function(e) {
+            // If click is directly on the checkbox, let the default behavior happen
+            if (e.target.type === 'checkbox') return;
+
+            // Prevent the default checkbox behavior
+            e.preventDefault();
+
+            // Find the checkbox within this icon
+            const checkbox = this.querySelector('.icon-checkbox');
+
+            // Toggle the checkbox
+            checkbox.checked = !checkbox.checked;
+
+            // Toggle the active class
+            if (checkbox.checked) {
+                this.classList.add('active');
+                // Hide marker-icon when active
+                this.querySelector('.marker-icons').style.display = 'none';
+            } else {
+                this.classList.remove('active');
+                // Restore marker-icon when inactive
+                this.querySelector('.marker-icons').style.display = 'flex';
+            }
+        });
+    });
+});
+
+// Add Turkish locale definition before flatpickr initialization
+const Turkish = {
+    weekdays: {
+        shorthand: ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"],
+        longhand: ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"]
+    },
+    months: {
+        shorthand: ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"],
+        longhand: ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
+    },
+    firstDayOfWeek: 1,
+    rangeSeparator: " ile ",
+    time_24hr: true
+};
+
+// Single, consolidated flatpickr initialization
+document.addEventListener('DOMContentLoaded', function() {
+    const datePickerElement = document.querySelector('#bs-rangepicker-time');
+    if (!datePickerElement) return;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    flatpickr(datePickerElement, {
+        mode: 'range',
+        enableTime: true,
+        dateFormat: "d F Y H:i",
+        time_24hr: true,
+        defaultDate: [today, todayEnd],
+        maxDate: 'today',
+        locale: Turkish,
+        onChange: function(selectedDates, dateStr) {
+            if (selectedDates.length === 2) {
+                const formattedStart = selectedDates[0].toLocaleString('tr-TR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const formattedEnd = selectedDates[1].toLocaleString('tr-TR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                this.input.value = `${formattedStart} ile ${formattedEnd}`;
+
+            }
+        }
+    });
+
+    // İlk değeri ayarla
+    const formattedStart = today.toLocaleString('tr-TR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    const formattedEnd = todayEnd.toLocaleString('tr-TR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    datePickerElement.value = `${formattedStart} ile ${formattedEnd}`;
+});
+
+// Update the flatpickr initialization in your DOMContentLoaded event handler
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize flatpickr for date range with today's date by default
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    const rangePicker = flatpickr("#bs-rangepicker-time", {
+        mode: 'range',
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        time_24hr: true,
+        defaultDate: [today, todayEnd],
+        // Optional: Set minimum selectable date to prevent selecting future dates
+        maxDate: 'today'
+    });
+
+    // Initialize Tagify for detection type
+    const detectionTypeInput = document.querySelector('#detectionType');
+    if (detectionTypeInput) {
+        new Tagify(detectionTypeInput);
+    }
+
+
+});
+
+window.setDateRange = function(period) {
+    const picker = document.querySelector('#bs-rangepicker-time')._flatpickr;
+    const now = new Date();
+    let startDate, endDate;
+
+    switch(period) {
+        case 'today':
+            startDate = new Date(now.setHours(0, 0, 0, 0));
+            endDate = new Date(now.setHours(23, 59, 59, 999));
+            break;
+        case 'week':
+            const firstDay = new Date(now);
+            firstDay.setDate(now.getDate() - now.getDay());
+            startDate = new Date(firstDay.setHours(0, 0, 0, 0));
+            const lastDay = new Date(firstDay);
+            lastDay.setDate(firstDay.getDate() + 6);
+            endDate = new Date(lastDay.setHours(23, 59, 59, 999));
+            break;
+        case 'month':
+            const monthStart = new Date(now);
+            monthStart.setMonth(now.getMonth() - 1);
+            startDate = new Date(monthStart.setHours(0, 0, 0, 0));
+            endDate = new Date(now.setHours(23, 59, 59, 999));
+            break;
+        case 'threemonths':
+            const threeMonthsStart = new Date(now);
+            threeMonthsStart.setMonth(now.getMonth() - 3);
+            startDate = new Date(threeMonthsStart.setHours(0, 0, 0, 0));
+            endDate = new Date(now.setHours(23, 59, 59, 999));
+            break;
+    }
+
+    picker.setDate([startDate, endDate]);
+
+    // Format dates for display
+    const formattedStart = startDate.toLocaleString('tr-TR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    const formattedEnd = endDate.toLocaleString('tr-TR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    document.querySelector('#bs-rangepicker-time').value = `${formattedStart} ile ${formattedEnd}`;
+};
+
+// Initialize Tagify and store the instance
+let tagifyInstance = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    let iconWhitelist = [];
+
+    // Fetch icon mappings and whitelist from server
+    fetch('/api/stream/icon-mappings/')
+        .then(response => response.json())
+        .then(data => {
+            iconMappings = data.mappings;
+            iconWhitelist = data.whitelist;
+
+            // Initialize Tagify with fetched whitelist
+            const detectionTypeInput = document.querySelector('#detectionType');
+            if (detectionTypeInput) {
+                tagifyInstance = new Tagify(detectionTypeInput, {
+                    whitelist: iconWhitelist,
+                    maxTags: 10,
+                    dropdown: {
+                        maxItems: 20,
+                        classname: "tags-look",
+                        enabled: 0,
+                        closeOnSelect: false
+                    },
+                    enforceWhitelist: true,
+                    userInput: false,
+                    editTags: false,
+                    removable: false,
+                    readonly: true
+                });
+            }
+        });
+
+    // Initialize department select with Select2
+    $('#departmentSelect').select2({
+        placeholder: "Departman seçin",
+        allowClear: true
+    }).on('change', function(e) {
+        const departmentId = $(this).val();
+        if (departmentId) {
+            // Fetch class names for selected department
+            fetch(`/api/departments/${departmentId}/class-names/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.class_names) {
+                        const mappedClassNames = data.class_names.map(className => {
+                            // council_filters.py'dan gelen başlığı kullan
+                            return fetch(`/get-icon-title/${className}/`)
+                                .then(response => response.json())
+                                .then(data => data.title)
+                                .catch(() => className);
+                        });
+
+                        // Update Tagify tags
+                        Promise.all(mappedClassNames).then(resolvedNames => {
+                            if (tagifyInstance) {
+                                tagifyInstance.removeAllTags();
+                                tagifyInstance.addTags(resolvedNames);
+                            }
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching class names:', error);
+                });
+        } else {
+            // Clear everything when no department is selected
+            if (tagifyInstance) {
+                tagifyInstance.removeAllTags();
+            }
+        }
+    });
+
+    // Function to update visible icons
+    function updateVisibleIcons(selectedTypes) {
+        const iconsWrapper = document.querySelector('.icons-wrapper');
+        const mapIcons = document.querySelectorAll('.map-icon');
+
+        if (selectedTypes && selectedTypes.length > 0) {
+            iconsWrapper.style.display = 'block';
+
+            mapIcons.forEach(icon => {
+                const iconTitle = icon.querySelector('.icon-title')?.textContent.trim();
+                if (iconTitle && selectedTypes.includes(iconTitle)) {
+                    icon.style.display = 'flex';
+                } else {
+                    icon.style.display = 'none';
+                }
+            });
+        } else {
+            // Show all icons if no types are selected
+            iconsWrapper.style.display = 'block';
+            mapIcons.forEach(icon => {
+                icon.style.display = 'flex';
+            });
+        }
+    }
+});
+
+// Add this function before the DOMContentLoaded event listener
+function handleDepartmentChange(departmentId) {
+    if (!departmentId) {
+        // Reset all icons to active state
+        document.querySelectorAll('.map-icon').forEach(icon => {
+            const checkbox = icon.querySelector('.icon-checkbox');
+            checkbox.checked = true;
+            icon.classList.add('active');
+        });
+
+        // Show all markers
+        document.querySelectorAll('.mapboxgl-marker').forEach(marker => {
+            marker.style.display = 'block';
+        });
+
+        // Update the "Tüm Tespitler" checkbox
+        const showAllDetectionsCheck = document.getElementById('showAllDetectionsCheck');
+        if (showAllDetectionsCheck) {
+            showAllDetectionsCheck.checked = true;
+        }
+
+        return;
+    }
+}
+
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.gmaps-tab').forEach(tab => {
+      tab.addEventListener('click', function() {
+          // Aktif sekmeyi güncelle
+          document.querySelectorAll('.gmaps-tab').forEach(t => t.classList.remove('active'));
+          this.classList.add('active');
+
+          // İlgili içeriği göster
+          const tabId = this.getAttribute('data-tab');
+          document.querySelectorAll('.gmaps-tab-content').forEach(content => {
+              content.classList.remove('active');
+          });
+          document.getElementById(tabId).classList.add('active');
+      });
+  });
+});
+
+
+document.addEventListener('DOMContentLoaded', function() {
+
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Set date range if exists in URL
+    const startDate = urlParams.get('start_date');
+    const endDate = urlParams.get('end_date');
+    if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const formattedStart = start.toLocaleString('tr-TR', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        const formattedEnd = end.toLocaleString('tr-TR', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        document.getElementById('bs-rangepicker-time').value = `${formattedStart} ile ${formattedEnd}`;
+    }
+
+    // Set department if exists in URL
+    const department = urlParams.get('department');
+    if (department) {
+        document.getElementById('departmentSelect').value = department;
+        $(departmentSelect).trigger('change');
+    }
+
+    // Set show all detections if exists in URL
+    const showAll = urlParams.get('show_all');
+    if (showAll === 'true') {
+        document.getElementById('showAllDetectionsCheck').checked = true;
+    }
+
+    // Set detection types if exist in URL
+    const detectionTypes = urlParams.getAll('detection_types');
+    if (detectionTypes.length > 0) {
+        document.querySelectorAll('.map-icon .icon-checkbox').forEach(checkbox => {
+            const iconTitle = checkbox.closest('.map-icon').querySelector('.icon-title').textContent.trim();
+            checkbox.checked = detectionTypes.includes(iconTitle);
+            if (checkbox.checked) {
+                checkbox.closest('.map-icon').classList.add('active');
+            }
+        });
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize flatpickr for date range with today's date by default
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    const rangePicker = flatpickr("#bs-rangepicker-time", {
+        mode: 'range',
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        time_24hr: true,
+        defaultDate: [today, todayEnd],
+        maxDate: 'today',
+        locale: Turkish,
+        onChange: function(selectedDates, dateStr) {
+            if (selectedDates.length === 2) {
+                const formattedStart = selectedDates[0].toISOString();
+                const formattedEnd = selectedDates[1].toISOString();
+                console.log(formattedStart, formattedEnd);
+            }
+        }
+    });
+
+
+
+
+
+
+    // Event listeners for filters
+    document.addEventListener('DOMContentLoaded', function() {
+        // Date range picker change
+        const rangePicker = flatpickr("#bs-rangepicker-time", {
+            mode: 'range',
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            time_24hr: true,
+            locale: Turkish,
+            onChange: function(selectedDates) {
+                if (selectedDates.length === 2) {
+                    //console.log(selectedDates[0].toISOString(), selectedDates[1].toISOString());
+                }
+            }
+        });
+
+        // Icon checkbox change
+        document.querySelectorAll('.map-icon .icon-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const dates = $('#bs-rangepicker-time').val().split(' ile ');
+                if (dates.length === 2) {
+                  //console.log(new Date(dates[0]).toISOString(), new Date(dates[1]).toISOString());
+                }
+            });
+        });
+    });
+
+    // Function to zoom and center on the most recent marker
+    function zoomToMostRecentMarker() {
+        const markers = Array.from(document.querySelectorAll('.mapboxgl-marker'))
+            .map(markerEl => {
+                const marker = markerEl._marker;
+                let dateStr = null;
+
+                // Safely get popup content
+                if (marker && marker.getPopup()) {
+                    const popup = marker.getPopup();
+                    const content = popup.getElement();
+                    if (content) {
+                        const dateElement = content.querySelector('[data-date]');
+                        if (dateElement) {
+                            dateStr = dateElement.dataset.date;
+                        }
+                    }
+                }
+
+                return {
+                    marker: marker,
+                    date: dateStr ? new Date(dateStr) : null,
+                    coordinates: marker.getLngLat()
+                };
+            })
+            .filter(m => m.date && m.coordinates)
+            .sort((a, b) => b.date - a.date); // Sort by date descending
+
+        if (markers.length > 0) {
+            const mostRecentMarker = markers[0];
+            mapInstance.flyTo({
+                center: mostRecentMarker.coordinates,
+                zoom: 15,
+                essential: true // this animation is considered essential with respect to prefers-reduced-motion
+            });
+        }
+    }
+
+    // Example of how to call the function when data changes
+    // Assuming you have a function that updates the markers
+    function updateMarkers() {
+        // Your code to update markers
+        // ...
+
+        // After updating markers, zoom to the most recent one
+        zoomToMostRecentMarker();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Get the "Tüm Tespitler" checkbox
+    const showAllDetectionsCheck = document.getElementById('showAllDetectionsCheck');
+
+    // Set it checked by default
+    if (showAllDetectionsCheck) {
+        showAllDetectionsCheck.checked = true;
+
+        // Get all map icons
+        const mapIcons = document.querySelectorAll('.map-icon');
+
+        // Activate all icons by default
+        mapIcons.forEach(icon => {
+            const checkbox = icon.querySelector('.icon-checkbox');
+            if (checkbox) {
+                checkbox.checked = true;
+                icon.classList.add('active');
+
+                // Add click event listener
+                icon.addEventListener('click', function(e) {
+                    if (e.target.type !== 'checkbox') {
+                        e.preventDefault();
+                        const checkbox = this.querySelector('.icon-checkbox');
+                        checkbox.checked = !checkbox.checked;
+                        this.classList.toggle('active', checkbox.checked);
+                    }
+                });
+            }
+        });
+
+        // Show all markers
+        const markers = document.querySelectorAll('.mapboxgl-marker');
+        markers.forEach(marker => {
+            marker.style.display = 'block';
+        });
+    }
+});
+
+
+function createPopupContent(data) {
+    try {
+        // Validate input data
+        if (!data) {
+            console.error('No data provided to createPopupContent');
+            return `<div class="alert alert-warning m-0">Veri Yok</div>`;
+        }
+
+        // Generate unique popup ID
+        const popupId = `detection-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        // Store data in cache without loading image
+        window.detectionCache = window.detectionCache || {};
+        window.detectionCache[popupId] = data;
+
+        // Format timestamp if available
+        const timestamp = data.timestamp
+            ? new Date(data.timestamp).toLocaleString('tr-TR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })
+            : 'Tarih bilgisi yok';
+
+        // Create detection badges HTML
+        const detectionsHtml = (data.detection_classes || [])
+            .map((d, index) => {
+                const className = d.class_name;
+                const iconPath = `/static/belediyeicons/${className.replace(/ /g, '_')}.png`;
+                const turkishName = window.iconMappings?.[className]?.turkish || className;
+                const confidence = (d.confidence * 100).toFixed(1);
+
+                return `
+                    <div class="detection-item${index === 0 ? ' highlight' : ''}" data-class="${className}">
+                        <img class="detection-icon" src="${iconPath}" alt="${className}" onerror="this.src='/static/belediyeicons/default.png'"/>
+                        <div class="ms-2">
+                            <span class="detection-turkish fw-bold" title="${confidence}% doğruluk">${turkishName}</span>
+                            <small class="d-block text-muted">${confidence}%</small>
+                        </div>
+                    </div>`;
+            })
+            .join('');
+
+        // Create a safe image URL but don't load it yet
+        let imageUrl = data.image_url || '';
+        if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+            imageUrl = '/' + imageUrl;
+        }
+
+        // Return enhanced popup HTML with lazy-loaded image
+        return `
+            <div class="popup-content">
+                <div class="popup-image-container mb-2" style="height: 130px; overflow: hidden; border-radius: 4px; position: relative; background-color: #f0f0f0;">
+                    <div class="image-loading-placeholder d-flex justify-content-center align-items-center" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Yükleniyor...</span>
+                        </div>
+                    </div>
+                    <img
+                        class="lazy-detection-image"
+                        data-src="${imageUrl}"
+                        alt="Tespit görüntüsü"
+                        style="width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s ease;"
+                        onerror="this.onerror=null; this.src='/static/images/no-image.png'; this.style.opacity=1; this.previousElementSibling.style.display='none';"
+                        onload="this.style.opacity=1; this.previousElementSibling.style.display='none';"
+                    />
+                    <div class="timestamp-overlay" style="position: absolute; bottom: 0; right: 0; background: rgba(0,0,0,0.6); color: white; padding: 2px 6px; font-size: 12px; border-top-left-radius: 4px; z-index: 2;">
+                        <i class="fas fa-clock me-1"></i>${timestamp}
+                    </div>
+                </div>
+
+                <div class="info-data mb-2 p-2" style="border-left: 3px solid #007bff;">
+                    <i class="fas fa-map-marker-alt me-1 text-danger"></i>
+                    <small>${data.fulladdress || 'Adres bilgisi yok'}</small>
+                </div>
+
+                <div class="detection-info p-2 mb-2" style="border: 1px solid #eee; border-radius: 4px; max-height: 150px; overflow-y: auto;">
+                    <h6 class="detection-header mb-2" style="font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 4px;">
+                        <i class="fas fa-search me-1"></i>Tespit Edilen Nesneler
+                    </h6>
+                    ${detectionsHtml}
+                </div>
+
+                <div class="text-center mt-2">
+                    <button class="btn btn-sm btn-primary w-100" onclick="safeShowDetection('${popupId}')">
+                        <i class="fas fa-external-link-alt me-1"></i>Detayları Göster
+                    </button>
+                </div>
+            </div>`;
+    } catch (error) {
+        console.error('Error creating popup content:', error);
+        return `<div class="alert alert-warning m-0">Hata oluştu</div>`;
+    }
+}
+
+// Update the createMarkerWithPopup function to handle lazy loading images
+function createMarkerWithPopup(data, coordinates) {
+    if (!data || !coordinates) {
+        console.error('Invalid data or coordinates:', { data, coordinates });
+        return null;
+    }
+
+    // Create marker element
+    const el = document.createElement('div');
+    el.className = 'custom-marker';
+
+    // Create marker icons container
+    const iconContainer = document.createElement('div');
+    iconContainer.className = 'marker-icons';
+
+    // Add first detection icon if available
+    if (data.detection_classes && data.detection_classes.length > 0) {
+        const firstDetection = data.detection_classes[0];
+        const icon = document.createElement('img');
+        icon.src = `/static/belediyeicons/${firstDetection.class_name}.png`;
+        icon.className = 'marker-icon';
+        icon.alt = firstDetection.class_name;
+        iconContainer.appendChild(icon);
+    }
+
+    el.appendChild(iconContainer);
+
+    // Create marker
+    const marker = new mapboxgl.Marker({
+        element: el,
+        anchor: 'bottom'
+    }).setLngLat(coordinates);
+
+    // Create popup with lazy loading behavior
+    const popup = new mapboxgl.Popup({
+        offset: 25,
+        closeButton: true,
+        closeOnClick: false,
+        maxWidth: '300px',
+        className: 'custom-popup'
+    }).setHTML(createPopupContent(data));
+
+    // Add event listener for popup open to load images
+    popup.on('open', function() {
+        // If there's already an open popup, close it first
+        if (currentOpenPopup && currentOpenPopup !== popup) {
+            currentOpenPopup.remove();
+        }
+
+        // Set this as the current open popup
+        currentOpenPopup = popup;
+
+        // Load lazy images in the popup
+        setTimeout(() => {
+            const popupContent = popup.getElement();
+            if (popupContent) {
+                const lazyImages = popupContent.querySelectorAll('.lazy-detection-image');
+                lazyImages.forEach(img => {
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                    }
+                });
+            }
+        }, 50); // Small timeout to ensure DOM is ready
+    });
+
+    // Add event listener to track when this popup is closed
+    popup.on('close', () => {
+        if (currentOpenPopup === popup) {
+            currentOpenPopup = null;
+        }
+    });
+
+    // Custom click handler for the marker
+    el.addEventListener('click', (e) => {
+        // If there's already an open popup, close it first
+        if (currentOpenPopup && currentOpenPopup !== popup) {
+            currentOpenPopup.remove();
+        }
+
+        // Set this as the current open popup
+        currentOpenPopup = popup;
+
+        // Open the popup
+        popup.setLngLat(coordinates).addTo(mapInstance);
+    });
+
+    // Store the popup for programmatic access later
+    marker._popup = popup;
+
+    return marker;
+}
+
+// Update fetchFilteredDetections with the same lazy loading approach
+function fetchFilteredDetections(selectedTypes) {
+    // ...existing code...
+
+    fetch(`/api/stream/filtered-detections/?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // ...existing code...
+
+                data.results.forEach(item => {
+                    if (item.lat && item.lng) {
+                        // ...existing code creating the marker element...
+
+                        // Create popup with lazy loading
+                        const popup = new mapboxgl.Popup({
+                            offset: 25,
+                            closeButton: true,
+                            closeOnClick: false,
+                            maxWidth: '300px',
+                            className: 'custom-popup'
+                        }).setHTML(createPopupContent(item, item.detection_classes || []));
+
+                        // Add event listener for popup open to load images
+                        popup.on('open', function() {
+                            // Close other popups
+                            if (currentOpenPopup && currentOpenPopup !== popup) {
+                                currentOpenPopup.remove();
+                            }
+
+                            // Set this as the current open popup
+                            currentOpenPopup = popup;
+
+                            // Load lazy images in the popup
+                            setTimeout(() => {
+                                const popupContent = popup.getElement();
+                                if (popupContent) {
+                                    const lazyImages = popupContent.querySelectorAll('.lazy-detection-image');
+                                    lazyImages.forEach(img => {
+                                        if (img.dataset.src) {
+                                            img.src = img.dataset.src;
+                                        }
+                                    });
+                                }
+                            }, 50);
+                        });
+
+                        // Track popup closing
+                        popup.on('close', () => {
+                            if (currentOpenPopup === popup) {
+                                currentOpenPopup = null;
+                            }
+                        });
+
+                        // ...rest of the code for marker setup...
+                    }
+                });
+
+                // ...existing code...
+            }
+        })
+        // ...existing code...
+}
+
+// Add map click handler to close open popups
+document.addEventListener('DOMContentLoaded', function() {
+    // ...existing DOMContentLoaded code...
+
+    // After map is initialized, add a click handler to close popups when clicking elsewhere
+    if (mapInstance) {
+        mapInstance.on('click', () => {
+            if (currentOpenPopup) {
+                currentOpenPopup.remove();
+                currentOpenPopup = null;
+            }
+        });
+    }
+
+    // ...remaining DOMContentLoaded code...
+});
+
+// Function to navigate to previous or next detection
+function navigateDetection(direction) {
+    if (isLoadingDetection) return; // Prevent multiple clicks
+
+    // Get the current timestamp from the modal
+    const modalElement = document.getElementById('detectionDetailModal');
+    const currentTimestamp = modalElement.dataset.detectionTimestamp;
+
+    if (!currentTimestamp) {
+        console.error("No timestamp found for current detection");
+        return;
+    }
+
+    // Show loading indicator
+    isLoadingDetection = true;
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.className = 'modal-loading-overlay';
+    loadingOverlay.innerHTML = '<div class="modal-loading-spinner"></div>';
+    modalElement.querySelector('.modal-content').appendChild(loadingOverlay);
+
+    // Get current filter parameters
+    const dateRangeInput = document.getElementById('bs-rangepicker-time');
+    let startDate = null;
+    let endDate = null;
+
+    if (dateRangeInput && dateRangeInput.value) {
+        const dateParts = dateRangeInput.value.split(' ile ');
+        if (dateParts.length === 2) {
+            try {
+                startDate = new Date(dateParts[0]).toISOString();
+                endDate = new Date(dateParts[1]).toISOString();
+            } catch (e) {
+                console.error("Error parsing date range:", e);
+            }
+        }
+    }
+
+    // Get department filter
+    const departmentSelect = document.getElementById('departmentSelect');
+    const departmentId = departmentSelect ? departmentSelect.value : null;
+
+    // Build API request URL with parameters
+    const params = new URLSearchParams();
+    params.append('reference_timestamp', currentTimestamp);
+    params.append('direction', direction);
+
+    // Ensure we explicitly set sorting to be by timestamp
+    params.append('sort_by', 'timestamp');
+
+    if (startDate && endDate) {
+        params.append('start_date', startDate);
+        params.append('end_date', endDate);
+    }
+
+    if (departmentId) {
+        params.append('department', departmentId);
+    }
+
+    // Add any active detection type filters
+    const activeTypes = Array.from(document.querySelectorAll('.map-icon.active'))
+        .map(icon => {
+            const imgElement = icon.querySelector('img');
+            return imgElement ? imgElement.alt : null;
+        })
+        .filter(type => type); // Filter out any null values
+
+    if (activeTypes.length > 0) {
+        activeTypes.forEach(type => {
+            params.append('detection_types[]', type);
+        });
+    }
+
+    // Make API request
+    fetch(`/api/stream/chronological-detections/?${params.toString()}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Clear loading state
+            isLoadingDetection = false;
+            loadingOverlay.remove();
+
+            if (data.status === 'success' && data.detections && data.detections.length > 0) {
+                // Ensure all coordinates use periods as decimal separators
+                data.detections.forEach(detection => {
+                    if (detection.detection_classes) {
+                        detection.detection_classes.forEach(cls => {
+                            cls.x_min = parseCoordinate(cls.x_min);
+                            cls.y_min = parseCoordinate(cls.y_min);
+                            cls.x_max = parseCoordinate(cls.x_max);
+                            cls.y_max = parseCoordinate(cls.y_max);
+                        });
+                    }
+
+                    if (detection.all_detections) {
+                        detection.all_detections.forEach(cls => {
+                            cls.x_min = parseCoordinate(cls.x_min);
+                            cls.y_min = parseCoordinate(cls.y_min);
+                            cls.x_max = parseCoordinate(cls.x_max);
+                            cls.y_max = parseCoordinate(cls.y_max);
+                        });
+                    }
+                });
+
+                // Show the adjacent detection
+                showDetectionDetail(data.detections[0], false);
+
+                // Update navigation status
+                if (data.navigation_status) {
+                    updateNavigationStatus(data.navigation_status);
+                } else {
+                    // Fallback update for navigation buttons
+                    updateNavigationButtonsState(direction);
+                }
+
+                // Show a timestamp notification
+                const formattedTimestamp = new Date(data.detections[0].timestamp).toLocaleString('tr-TR');
+                showNavigationNotification(`${direction === 'prev' ? 'Önceki' : 'Sonraki'} tespit: ${formattedTimestamp}`);
+            } else {
+                // No more detections in this direction
+                const message = direction === 'next' ? 'Son tespite ulaştınız' : 'İlk tespite ulaştınız';
+                showNavigationNotification(message);
+
+                // Disable the appropriate navigation button
+                if (direction === 'next') {
+                    modalElement.querySelector('.modal-nav-next').classList.add('disabled');
+                    modalElement.querySelector('.modal-nav-next').setAttribute('disabled', 'disabled');
+                } else {
+                    modalElement.querySelector('.modal-nav-prev').classList.add('disabled');
+                    modalElement.querySelector('.modal-nav-prev').setAttribute('disabled', 'disabled');
+                }
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching detection:", error);
+            isLoadingDetection = false;
+            loadingOverlay.remove();
+            showNavigationNotification('Veri alınırken bir hata oluştu');
+        });
+}
+
+// Add a function to update navigation status based on server response
+function updateNavigationStatus(status) {
+    const modalElement = document.getElementById('detectionDetailModal');
+    const prevButton = modalElement.querySelector('.modal-nav-prev');
+    const nextButton = modalElement.querySelector('.modal-nav-next');
+
+    // Update previous button
+    if (prevButton) {
+        if (!status.has_previous) {
+            prevButton.classList.add('disabled');
+            prevButton.setAttribute('disabled', 'disabled');
+        } else {
+            prevButton.classList.remove('disabled');
+            prevButton.removeAttribute('disabled');
+        }
+    }
+
+    // Update next button
+    if (nextButton) {
+        if (!status.has_next) {
+            nextButton.classList.add('disabled');
+            nextButton.setAttribute('disabled', 'disabled');
+        } else {
+            nextButton.classList.remove('disabled');
+            nextButton.removeAttribute('disabled');
+        }
+    }
+}
+
+// Helper function to show a notification in the modal
+function showNavigationNotification(message) {
+    try {
+        const modalElement = document.getElementById('detectionDetailModal');
+        if (!modalElement) return;
+
+        const modalContent = modalElement.querySelector('.modal-content');
+        if (!modalContent) return;
+
+        const notificationDiv = document.createElement('div');
+        notificationDiv.className = 'alert alert-info navigation-notification';
+        notificationDiv.style.position = 'absolute';
+        notificationDiv.style.top = '60px';
+        notificationDiv.style.left = '50%';
+        notificationDiv.style.transform = 'translateX(-50%)';
+        notificationDiv.style.zIndex = '1100';
+        notificationDiv.style.padding = '10px 20px';
+        notificationDiv.style.borderRadius = '5px';
+        notificationDiv.style.opacity = '0.9';
+        notificationDiv.textContent = message;
+
+        modalContent.appendChild(notificationDiv);
+
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            notificationDiv.style.opacity = '0';
+            notificationDiv.style.transition = 'opacity 0.5s ease';
+            setTimeout(() => {
+                if (notificationDiv.parentNode) {
+                    notificationDiv.parentNode.removeChild(notificationDiv);
+                }
+            }, 500);
+        }, 3000);
+    } catch (error) {
+        console.error('Error showing notification:', error);
+    }
+}
+
+// Function to update navigation buttons based on available detections
+function updateNavigationButtonsState(direction) {
+    // Reset both buttons to enabled state when navigating
+    const modalElement = document.getElementById('detectionDetailModal');
+    const prevButton = modalElement.querySelector('.modal-nav-prev');
+    const nextButton = modalElement.querySelector('.modal-nav-next');
+
+    // Enable both buttons initially
+    prevButton.classList.remove('disabled');
+    prevButton.removeAttribute('disabled');
+    nextButton.classList.remove('disabled');
+    nextButton.removeAttribute('disabled');
+
+    // We don't know if we're at the edges without checking, but we've just navigated successfully
+    // so at least the button we just used worked - the other direction might need checking
+}
+
+
+
+// Format options: show an icon and the text
+function formatDetectionOption(state) {
+    if (!state.id) return state.text;
+    const iconPath = `/static/belediyeicons/${state.id.replace(/ /g, '_')}.png`;
+    return $(`<div class="select2-result-option">
+        <img src="${iconPath}" class="select2-option-icon" onerror="this.src='/static/belediyeicons/default.png'"/>
+        <span>${state.text}</span>
+    </div>`);
+}
+
+
+// Update resetFiltering to handle multiple selections without causing infinite recursion
+let isResetting = false;
+
+function resetFiltering() {
+    // Set flag to prevent recursion
+    isResetting = true;
+
+    try {
+        // Reset active filter
+        activeFilter = null;
+
+        // Clear Select2 selection without triggering change event
+        $('#councilFilterSelect').val(null);
+
+        // Update the Select2 control's visual state without triggering the change handler
+        $('#councilFilterSelect').trigger('change.select2');
+
+        // Reset all markers
+        resetAllMarkers();
+
+        // Reset all icons to active state
+        document.querySelectorAll('.map-icon').forEach(icon => {
+            icon.classList.add('active');
+            const checkbox = icon.querySelector('.icon-checkbox');
+            if (checkbox) checkbox.checked = true;
+        });
+
+        // Remove filter status if it exists
+        const existingStatus = document.querySelector('.filter-status-container');
+        if (existingStatus) {
+            existingStatus.remove();
+        }
+    } finally {
+        // Reset the flag
+        isResetting = false;
+    }
+}
+
+// Update the councilFilterSelect change handler to check the flag
+$('#councilFilterSelect').select2({
+    placeholder: "Tespit türlerini seçin",
+    allowClear: true,
+    width: '100%',
+    closeOnSelect: false,
+    multiple: true,
+    templateResult: formatDetectionOption,
+    templateSelection: formatDetectionSelection
+}).on('change', function(e) {
+    // Prevent handling the event if we're in the middle of resetting
+    if (isResetting) return;
+
+    // Get selected values and ensure it's an array
+    let selectedTypes = $(this).val() || [];
+
+    // Filter out empty values BEFORE checking length
+    selectedTypes = selectedTypes.filter(type => type && type.trim() !== '');
+
+    resetAllMarkers();
+
+    if (selectedTypes.length > 0) {
+        fetchFilteredDetections(selectedTypes);
+    } else {
+        // When nothing is selected, just reset markers without triggering another change
+        resetAllMarkers();
+
+        // Remove filter status if it exists
+        const existingStatus = document.querySelector('.filter-status-container');
+        if (existingStatus) {
+            existingStatus.remove();
+        }
+    }
+});
+
+// Fix fetchFilteredDetections to handle empty selections better
+function fetchFilteredDetections(selectedTypes) {
+    console.log('Selected Types:', selectedTypes); // Debug log
+
+    // Ensure selectedTypes is an array and filter out empty values
+    selectedTypes = Array.isArray(selectedTypes) ? selectedTypes.filter(type => type && type.trim() !== '') : [];
+
+    if (selectedTypes.length === 0) {
+        console.log('No selected types, resetting markers'); // Debug log
+        resetAllMarkers();
+        return;
+    }
+
+    // Reset markers before fetching new ones
+    resetAllMarkers();
+
+    // Create URL parameters directly as URLSearchParams
+    const params = new URLSearchParams();
+
+    // Add selected types
+    selectedTypes.forEach(type => {
+        params.append('detection_types[]', type);
+    });
+
+
+    fetch(`/api/stream/filtered-detections/?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+
+            if (data.success) {
+                const bounds = new mapboxgl.LngLatBounds();
+                let hasValidMarkers = false;
+
+                data.results.forEach(item => {
+
+                    if (item.lat && item.lng) {
+
+                        // Create marker element container
+                        const el = document.createElement('div');
+                        el.className = 'custom-marker';
+
+                        // Create marker icons container
+                        const iconContainer = document.createElement('div');
+                        iconContainer.className = 'marker-icons';
+
+                        // Log detection classes before creating icons
+
+                        // Add detection icon if available
+                        if (item.detection_classes && item.detection_classes.length > 0) {
+
+                            const firstDetection = item.detection_classes[0];
+                            const icon = document.createElement('img');
+                            icon.src = `/static/belediyeicons/${firstDetection.class_name}.png`;
+                            icon.className = 'marker-icon';
+                            icon.alt = firstDetection.class_name;
+
+                            iconContainer.appendChild(icon);
+                        } else {
+                            console.warn('No detection classes found for item:', item);
+                        }
+
+                        el.appendChild(iconContainer);
+
+                        // Create marker with proper positioning
+                        const marker = new mapboxgl.Marker({
+                            element: el,
+                            anchor: 'bottom'
+                        })
+                        .setLngLat([item.lng, item.lat]);
+
+                        // Debug popup content
+                        const popupContent = createPopupContent(item, item.detection_classes || []);
+
+                        marker.setPopup(
+                            new mapboxgl.Popup({offset: 25})
+                            .setHTML(popupContent)
+                        );
+
+                        // Add to map
+                        marker.addTo(mapInstance);
+
+                        // Store marker reference
+                        mapInstance._markers = mapInstance._markers || [];
+                        mapInstance._markers.push(marker);
+
+                        bounds.extend([item.lng, item.lat]);
+                        hasValidMarkers = true;
+                    } else {
+                        console.warn('Invalid coordinates for item:', item);
+                    }
+                });
+
+                if (hasValidMarkers && !bounds.isEmpty()) {
+                    mapInstance.fitBounds(bounds, {
+                        padding: 50,
+                        maxZoom: 15
+                    });
+                    console.log('Map bounds updated'); // Debug bounds update
+                } else {
+                    console.warn('No valid markers created');
+                }
+            } else {
+                console.error('API request was not successful:', data);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching filtered detections:', error);
+        });
+}
+
+// Function to format selected item with count
+function formatDetectionSelection(state) {
+    if (!state.id) return state.text;
+    const iconPath = `/static/belediyeicons/${state.id.replace(/ /g, '_')}.png`;
+    const count = state.element.dataset.count || '0';
+    return $(`<div>
+        <img src="${iconPath}" class="select2-option-icon" onerror="this.src='/static/belediyeicons/default.png'"/>
+        <span>${state.text}</span>
+        <span class="badge bg-secondary ms-2">${count}</span>
+    </div>`);
+}
+
+
+
+// Function to format selected item with count
+function formatDetectionSelection(state) {
+    if (!state.id) return state.text;
+    const iconPath = `/static/belediyeicons/${state.id.replace(/ /g, '_')}.png`;
+    const count = state.element.dataset.count || '0';
+    return $(`<div>
+        <img src="${iconPath}" class="select2-option-icon" onerror="this.src='/static/belediyeicons/default.png'"/>
+        <span>${state.text}</span>
+        <span class="badge bg-secondary ms-2">${count}</span>
+    </div>`);
+}
+
+
+// Add this new function to handle the safe detection showing
+function safeShowDetection(popupId) {
+    try {
+        // Ensure detectionCache exists
+        if (!window.detectionCache) {
+            console.error('Detection cache is not initialized.');
+            alert('Tespit verisi bulunamadı. Lütfen tekrar deneyin.');
+            return;
+        }
+
+        // Get the detection data from cache
+        const detection = window.detectionCache[popupId];
+        if (!detection) {
+            console.error(`Detection data not found in cache for ID: ${popupId}`);
+            alert('Tespit verisi bulunamadı. Lütfen tekrar deneyin.');
+            return;
+        }
+
+
+        // Show the detection details in a modal
+        const modalEl = document.getElementById('detectionDetailModal');
+        if (!modalEl) {
+            console.error('Modal element not found.');
+            alert('Detay gösterme hatası: Modal bulunamadı.');
+            return;
+        }
+
+        // Initialize the Modal instance
+        const modalInstance = new bootstrap.Modal(modalEl);
+
+        // Populate the modal content and show it
+        populateModalContent(modalEl, detection);
+        modalInstance.show();
+
+        // Set up the modal shown handler
+        modalEl.addEventListener('shown.bs.modal', function () {
+            handleModalShown(detection);
+        }, { once: true });
+
+    } catch (error) {
+        console.error('Error showing detection:', error);
+        alert('Tespit detayları gösterilirken bir hata oluştu.');
+    }
+}
+
+// Function to populate modal content with detection data
+function populateModalContent(modalEl, detection) {
+    // Save the detection timestamp as a data attribute for navigation
+    modalEl.dataset.detectionTimestamp = detection.timestamp || '';
+
+    // Clean up any existing modal content
+    const modalBody = modalEl.querySelector('.modal-body');
+    modalBody.innerHTML = '';
+
+    // Create new modal structure
+    const modalContent = `
+        <div class="container-fluid p-0">
+            <div class="row">
+                <div class="col-md-9">
+                    <div class="canvas-container position-relative" style="height: 80vh; background-color: #000;">
+                        <canvas id="detectionCanvas"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="detection-info mb-3 p-2">
+                        <h5>Tespit Bilgileri</h5>
+                        <p><strong>Tarih:</strong> ${detection.timestamp || 'Belirtilmemiş'}</p>
+                        <p><strong>Adres:</strong> ${detection.fulladdress || 'Belirtilmemiş'}</p>
+                        <div class="detection-classes mt-3">
+                            <h6>Tespit Edilen Nesneler</h6>
+                            <div class="detection-list">
+                                ${createDetectionItemsHTML(detection)}
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">Kapat</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation arrows -->
+        <div class="modal-nav-arrows">
+            <button class="modal-nav-arrow modal-nav-prev" onclick="navigateDetection('prev')">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <button class="modal-nav-arrow modal-nav-next" onclick="navigateDetection('next')">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    `;
+
+    modalBody.innerHTML = modalContent;
+}
+
+// Function to create HTML for detection items
+function createDetectionItemsHTML(detection) {
+    // Check if detection_classes exists and use it, otherwise try all_detections
+    const detections = detection.detection_classes || detection.all_detections || [];
+
+    if (!detections.length) {
+        return '<p>Tespit bilgisi bulunamadı.</p>';
+    }
+
+    // Group detections by class name for counting
+    const detectionCounts = {};
+    detections.forEach(det => {
+        const className = det.class_name;
+        if (!detectionCounts[className]) {
+            detectionCounts[className] = {
+                count: 0,
+                detections: []
+            };
+        }
+        detectionCounts[className].count++;
+        detectionCounts[className].detections.push(det);
+    });
+
+    // Create HTML for each detection class
+    let html = '';
+    Object.keys(detectionCounts).forEach((className, classIndex) => {
+        const count = detectionCounts[className].count;
+        const iconPath = `/static/belediyeicons/${className.replace(/ /g, '_')}.png`;
+        const turkishName = window.iconMappings?.[className]?.turkish || className;
+
+        html += `
+            <div class="detection-item mb-2" data-class-name="${className}" data-index="${classIndex}">
+                <img src="${iconPath}" class="detection-icon me-2"
+                     onerror="this.onerror=null;this.src='/static/belediyeicons/default.png';">
+                <span class="detection-turkish" onclick="highlightDetections('${className}')">${turkishName}</span>
+                <span class="badge bg-secondary ms-2">${count}</span>
+            </div>
+        `;
+    });
+
+    return html;
+}
+
+// Function to handle modal shown event
+function handleModalShown(detection) {
+    try {
+        // Log detection information again when drawing on canvas
+        const detections = detection.detection_classes || detection.all_detections || [];
+        // Initialize canvas with detection data
+        initializeCanvas(detection);
+
+        // Set up detection highlight interactions
+        setupDetectionHighlighting();
+
+        // Ensure navigation buttons have correct state
+        updateNavigationButtonsState(null);
+    } catch (error) {
+        console.error('Error in modal initialization:', error);
+    }
+}
+
+// Function to initialize canvas with image and detection boxes
+function initializeCanvas(detection) {
+    if (!detection) {
+        console.error('No detection data provided');
+        return;
+    }
+
+    // Clear any previous canvas
+    if (detailCanvas) {
+        detailCanvas.dispose();
+        detailCanvas = null;
+    }
+
+    const canvasContainer = document.querySelector('.canvas-container');
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.className = 'canvas-loading';
+    loadingIndicator.innerHTML = `
+        <div class="canvas-loading-spinner"></div>
+        <div class="canvas-loading-text">Resim yükleniyor...</div>
+    `;
+    canvasContainer.appendChild(loadingIndicator);
+
+    // Create new canvas
+    detailCanvas = new fabric.Canvas('detectionCanvas', {
+        selection: false,
+        preserveObjectStacking: true
+    });
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+
+    img.onload = function() {
+        // Calculate proper scaling
+        const containerWidth = canvasContainer.clientWidth;
+        const containerHeight = canvasContainer.clientHeight;
+        const scaleX = containerWidth / img.width;
+        const scaleY = containerHeight / img.height;
+        const scale = Math.min(scaleX, scaleY);
+
+        // Set canvas dimensions
+        detailCanvas.setWidth(img.width * scale);
+        detailCanvas.setHeight(img.height * scale);
+
+        // Add background image
+        const fabricImage = new fabric.Image(img, {
+            scaleX: scale,
+            scaleY: scale,
+            originX: 'left',
+            originY: 'top',
+            selectable: false
+        });
+
+        detailCanvas.setBackgroundImage(fabricImage, function() {
+            const allDetections = detection.detection_classes || detection.all_detections || [];
+
+            // Draw each detection box
+            allDetections.forEach((det, index) => {
+                if (det.x_min !== undefined && det.y_min !== undefined &&
+                    det.x_max !== undefined && det.y_max !== undefined) {
+                    drawDetectionBox(det, index === 0, scale, index);
+                }
+            });
+
+            detailCanvas.renderAll();
+
+            if (loadingIndicator.parentNode) {
+                loadingIndicator.parentNode.removeChild(loadingIndicator);
+            }
+        });
+    };
+
+    // Set image source
+    if (detection.image_url) {
+        let imageUrl = detection.image_url;
+        if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+            imageUrl = '/' + imageUrl;
+        }
+        img.src = imageUrl;
+    }
+}
+
+function drawDetectionBox(detection, isHighlighted, scale, index) {
+    try {
+        // Parse coordinates with validation
+        const coordinates = {
+            x_min: parseCoordinate(detection.x_min),
+            y_min: parseCoordinate(detection.y_min),
+            x_max: parseCoordinate(detection.x_max),
+            y_max: parseCoordinate(detection.y_max)
+        };
+
+        // Validate coordinates
+        if (Object.values(coordinates).some(isNaN)) {
+            console.warn('Invalid coordinates:', coordinates);
+            return;
+        }
+
+        // Calculate dimensions
+        const width = (coordinates.x_max - coordinates.x_min) * scale;
+        const height = (coordinates.y_max - coordinates.y_min) * scale;
+        const left = coordinates.x_min * scale;
+        const top = coordinates.y_min * scale;
+
+
+        // Create rectangle
+        const rect = new fabric.Rect({
+            left: left,
+            top: top,
+            width: width,
+            height: height,
+            fill: 'transparent',
+            stroke: getColorForClass(detection.class_name, index),
+            strokeWidth: isHighlighted ? 3 : 2,
+            strokeDashArray: isHighlighted ? [] : [5, 5],
+            strokeUniform: true,
+            selectable: false,
+            evented: false
+        });
+
+        // Add label
+        const turkishName = window.iconMappings?.[detection.class_name]?.turkish || detection.class_name;
+        const confidence = detection.confidence ?
+            ` (${(parseFloat(detection.confidence) * 100).toFixed(0)}%)` : '';
+
+        const label = new fabric.Text(turkishName + confidence, {
+            left: left,
+            top: Math.max(0, top - 20),
+            fontSize: 14,
+            fill: getColorForClass(detection.class_name, index),
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            padding: 5,
+            selectable: false,
+            evented: false
+        });
+
+        // Store class name for highlighting
+        rect.data = { className: detection.class_name };
+        label.data = { className: detection.class_name };
+
+        // Add to canvas
+        detailCanvas.add(rect);
+        detailCanvas.add(label);
+
+    } catch (error) {
+        console.error('Error drawing detection box:', error);
+    }
+}
+
+// Function to get color for detection class
+function getColorForClass(className, index) {
+    // Predefined colors for common classes
+    const classColors = {
+        'person': '#FF0000',
+        'car': '#00FF00',
+        'truck': '#0000FF',
+        'motorcycle': '#FFFF00',
+        'bicycle': '#FF00FF',
+        'bus': '#00FFFF',
+        'traffic_light': '#FF8000',
+        'stop_sign': '#8000FF'
+    };
+
+    // Use predefined color if available, otherwise generate from index
+    if (classColors[className]) {
+        return classColors[className];
+    }
+
+    // Generate color based on index
+    const hue = (index * 137.5) % 360; // Golden angle approximation for good distribution
+    return `hsl(${hue}, 100%, 50%)`;
+}
+
+// Function to highlight detections of a specific class
+function highlightDetections(className) {
+    // Skip if canvas is not initialized
+    if (!detailCanvas) return;
+
+    // Reset all objects to non-highlighted state
+    detailCanvas.getObjects().forEach(obj => {
+        if (obj.get('class')) {
+            obj.set('class', obj.get('class').replace(' highlight', ''));
+            if (obj.type === 'rect') {
+                obj.set('strokeWidth', 2);
+                obj.set('strokeDashArray', [5, 5]);
+            }
+        }
+    });
+
+    // Highlight objects matching the class name
+    detailCanvas.getObjects().forEach(obj => {
+        if (obj.data && obj.data.className === className) {
+            obj.set('class', obj.get('class') + ' highlight');
+            if (obj.type === 'rect') {
+                obj.set('strokeWidth', 3);
+                obj.set('strokeDashArray', []);
+            }
+        }
+    });
+
+    // Render canvas
+    detailCanvas.renderAll();
+
+    // Also highlight the list item
+    document.querySelectorAll('.detection-item').forEach(item => {
+        if (item.dataset.className === className) {
+            item.classList.add('highlight');
+        } else {
+            item.classList.remove('highlight');
+        }
+    });
+}
+
+// Function to set up detection highlighting interactions
+function setupDetectionHighlighting() {
+    // Add click handlers to detection items in list
+    document.querySelectorAll('.detection-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const className = this.dataset.className;
+            highlightDetections(className);
+        });
+    });
+}
+
+// Function to retry loading an image
+function retryLoadImage(imageUrl) {
+    // Get the current detection data from the modal
+    const modalEl = document.getElementById('detectionDetailModal');
+    if (!modalEl || !modalEl.dataset.detectionTimestamp) return;
+
+    // Find the detection in the cache
+    const detection = Object.values(window.detectionCache).find(
+        d => d.timestamp === modalEl.dataset.detectionTimestamp
+    );
+
+    if (detection) {
+        // Reinitialize the canvas with the detection
+        initializeCanvas(detection);
+    }
+}
+
+// Function to show detection details after navigation
+function showDetectionDetail(detection, isNewModal = true) {
+    try {
+        // Cache this detection data with a unique ID for future reference
+        const popupId = `detection-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        window.detectionCache = window.detectionCache || {};
+        window.detectionCache[popupId] = detection;
+
+        // Get the modal element
+        const modalEl = document.getElementById('detectionDetailModal');
+        if (!modalEl) {
+            console.error('Modal element not found');
+            return;
+        }
+
+        // If this is a new modal, initialize the Bootstrap modal
+        // Otherwise just update the content
+        if (isNewModal) {
+            const modalInstance = new bootstrap.Modal(modalEl);
+            modalInstance.show();
+        }
+
+        // Update the modal content
+        populateModalContent(modalEl, detection);
+
+        // Initialize canvas after content is updated
+        setTimeout(() => {
+            handleModalShown(detection);
+        }, 100);
+
+    } catch (error) {
+        console.error('Error showing detection detail:', error);
+        alert('Tespit detayları gösterilirken bir hata oluştu');
+    }
+}
+
+function initializeFilters() {
+    // Initialize Select2 for multiple select
+    $('#councilFilterSelect').select2({
+        placeholder: "Tespit türlerini seçin",
+        allowClear: true,
+        templateResult: formatDetectionOption,
+        templateSelection: formatDetectionSelection,
+        closeOnSelect: false
+    });
+
+    // Initialize address autocomplete
+    let addressTimeout;
+    $('#addressFilter').on('input', function() {
+        clearTimeout(addressTimeout);
+        addressTimeout = setTimeout(() => {
+            applyFilters();
+        }, 500);
+    });
+
+    // Add event listeners for all filters
+    $('#confidenceFilter, #sortOrder').on('change', applyFilters);
+
+    // Update statistics when filters change
+    updateStatistics();
+}
+
+function applyFilters() {
+    const filters = {
+        dateRange: $('#bs-rangepicker-time').val(),
+        department: $('#departmentSelect').val(),
+        detectionTypes: $('#councilFilterSelect').val(),
+        address: $('#addressFilter').val(),
+        confidence: $('#confidenceFilter').val(),
+        sortOrder: $('#sortOrder').val()
+    };
+
+    // Make API request with filters
+    fetch(`/api/stream/filtered-detections/?${new URLSearchParams(filters)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateMap(data.results);
+                updateStatistics(data.statistics);
+                updateActiveFilters(filters);
+            }
+        })
+}
+
+function updateStatistics(stats = {}) {
+    try {
+        // Set default values if stats is undefined or null
+        const defaults = {
+            total: 0,
+            date_range: null,
+            filtered_types: []
+        };
+
+        // Merge defaults with provided stats
+        const data = { ...defaults, ...(stats || {}) };
+
+        // Safely update DOM elements with null checks
+        const totalElement = document.getElementById('totalDetections');
+        if (totalElement) {
+            totalElement.textContent = data.total;
+        }
+
+        const lastUpdateElement = document.getElementById('lastUpdate');
+        if (lastUpdateElement) {
+            lastUpdateElement.textContent = new Date().toLocaleString('tr-TR');
+        }
+
+        const activeFiltersElement = document.getElementById('activeFilters');
+        if (activeFiltersElement) {
+            // Count active filters
+            const activeFilters = [
+                $('#bs-rangepicker-time').val(),
+                $('#departmentSelect').val(),
+                ($('#councilFilterSelect').val() || []).length > 0,
+                $('#addressFilter').val()
+            ].filter(Boolean).length;
+
+            activeFiltersElement.textContent = activeFilters;
+        }
+    } catch (error) {
+        console.error('Error updating statistics:', error);
+        // Set fallback values in case of error
+        $('#totalDetections').text('0');
+        $('#lastUpdate').text('-');
+        $('#activeFilters').text('0');
+    }
+}
+
+function countActiveFilters() {
+    let count = 0;
+    if ($('#bs-rangepicker-time').val()) count++;
+    if ($('#departmentSelect').val()) count++;
+    if ($('#councilFilterSelect').val()?.length) count++;
+    if ($('#addressFilter').val()) count++;
+    if ($('#confidenceFilter').val()) count++;
+    return count;
+}
+
+function applyQuickFilter(type) {
+    switch(type) {
+        case 'last24hours':
+            const now = new Date();
+            const yesterday = new Date(now - 24*60*60*1000);
+
+            // Set the date range in the input
+            const picker = document.querySelector('#bs-rangepicker-time')._flatpickr;
+            picker.setDate([yesterday, now]);
+
+            // Format dates for API
+            const startDate = yesterday.toISOString();
+            const endDate = now.toISOString();
+
+            // Reset existing markers
+            resetAllMarkers();
+
+            // Create filter parameters
+            const params = new URLSearchParams();
+            params.append('start_date', startDate);
+            params.append('end_date', endDate);
+
+            // Add any active detection types
+            const activeTypes = Array.from(document.querySelectorAll('.map-icon.active'))
+                .map(icon => icon.querySelector('img')?.alt)
+                .filter(Boolean);
+
+            activeTypes.forEach(type => {
+                params.append('detection_types[]', type);
+            });
+
+            // Add department if selected
+            const department = document.getElementById('departmentSelect')?.value;
+            if (department) {
+                params.append('department', department);
+            }
+
+            // Fetch filtered data
+            fetch(`/api/stream/filtered-detections/?${params.toString()}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const bounds = new mapboxgl.LngLatBounds();
+                        let hasValidMarkers = false;
+
+                        data.results.forEach(item => {
+                            if (item.lat && item.lng) {
+                                const marker = new mapboxgl.Marker()
+                                    .setLngLat([item.lng, item.lat])
+                                    .setPopup(new mapboxgl.Popup({ offset: 25 })
+                                        .setHTML(createPopupContent(item, item.detection_classes)))
+                                    .addTo(mapInstance);
+
+                                mapInstance._markers = mapInstance._markers || [];
+                                mapInstance._markers.push(marker);
+
+                                bounds.extend([item.lng, item.lat]);
+                                hasValidMarkers = true;
+                            }
+                        });
+
+                        if (hasValidMarkers && !bounds.isEmpty()) {
+                            mapInstance.fitBounds(bounds, {
+                                padding: 50,
+                                maxZoom: 15
+                            });
+                        }
+
+                        // Update statistics
+                        updateStatistics({
+                            total: data.results.length
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error applying quick filter:', error);
+                });
+            break;
+
+        // ... other cases ...
+    }
+}
+
+function resetAllFilters() {
+    $('#bs-rangepicker-time').val('');
+    $('#departmentSelect').val('').trigger('change');
+    $('#councilFilterSelect').val(null).trigger('change');
+    $('#addressFilter').val('');
+    $('#confidenceFilter').val('');
+    $('#sortOrder').val('date_desc');
+    applyFilters();
+}
+
+// Initialize everything when document is ready
+$(document).ready(function() {
+    initializeFilters();
+    applyFilters(); // Initial load
+});
+
+// Add this after your existing initialization code
+document.addEventListener('DOMContentLoaded', function() {
+    const addressInput = document.getElementById('addressFilter');
+    let suggestionsContainer = null;
+    let debounceTimer;
+
+    // Create suggestions container
+    function createSuggestionsContainer() {
+        if (!suggestionsContainer) {
+            suggestionsContainer = document.createElement('div');
+            suggestionsContainer.className = 'address-suggestions';
+            suggestionsContainer.style.display = 'none';
+            addressInput.parentNode.style.position = 'relative';
+            addressInput.parentNode.appendChild(suggestionsContainer);
+        }
+    }
+
+    // Function to show suggestions (update this function)
+    function showSuggestions(suggestions) {
+        if (suggestions.length > 0) {
+            // Create a Map to store unique addresses
+            const uniqueAddresses = new Map();
+
+            // Filter for unique addresses based on full address
+            suggestions.forEach(suggestion => {
+                if (!uniqueAddresses.has(suggestion.value)) {
+                    uniqueAddresses.set(suggestion.value, suggestion);
+                }
+            });
+
+            // Convert Map values back to array and create HTML
+            suggestionsContainer.innerHTML = Array.from(uniqueAddresses.values())
+                .map(suggestion => `
+                    <div class="suggestion-item" data-value="${suggestion.value}">
+                        <div class="suggestion-area">${suggestion.area}</div>
+                        <div class="suggestion-address">${suggestion.label}</div>
+                    </div>
+                `).join('');
+
+            suggestionsContainer.style.display = 'block';
+
+            // ...rest of existing showSuggestions code...
+            suggestionsContainer.querySelectorAll('.suggestion-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    addressInput.value = this.dataset.value;
+                    suggestionsContainer.style.display = 'none';
+
+                    // Reset markers
+                    resetAllMarkers();
+
+                    // Create params for filtering
+                    const params = new URLSearchParams();
+                    params.append('address', this.dataset.value);
+
+                    // Add any active detection types
+                    const activeTypes = Array.from(document.querySelectorAll('.map-icon.active'))
+                        .map(icon => icon.querySelector('img')?.alt)
+                        .filter(Boolean);
+
+                    activeTypes.forEach(type => {
+                        params.append('detection_types[]', type);
+                    });
+
+                    // Add date range if exists
+                    const dateRange = document.getElementById('bs-rangepicker-time').value;
+                    if (dateRange) {
+                        const [start, end] = dateRange.split(' ile ').map(d => new Date(d));
+                        params.append('start_date', start.toISOString());
+                        params.append('end_date', end.toISOString());
+                    }
+
+                    // Add department if selected
+                    const department = document.getElementById('departmentSelect').value;
+                    if (department) {
+                        params.append('department', department);
+                    }
+
+                    // Fetch filtered detections
+                    fetch(`/api/stream/filtered-detections/?${params.toString()}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Create bounds for map
+                                const bounds = new mapboxgl.LngLatBounds();
+                                let hasValidMarkers = false;
+
+                                data.results.forEach(item => {
+                                    if (item.lat && item.lng) {
+                                        // Create marker
+                                        const marker = new mapboxgl.Marker()
+                                            .setLngLat([item.lng, item.lat])
+                                            .setPopup(new mapboxgl.Popup({ offset: 25 })
+                                                .setHTML(createPopupContent(item, item.detection_classes)))
+                                            .addTo(mapInstance);
+
+                                        // Store marker reference
+                                        mapInstance._markers = mapInstance._markers || [];
+                                        mapInstance._markers.push(marker);
+
+                                        // Extend bounds
+                                        bounds.extend([item.lng, item.lat]);
+                                        hasValidMarkers = true;
+                                    }
+                                });
+
+                                // Fit map to show all markers
+                                if (hasValidMarkers && !bounds.isEmpty()) {
+                                    mapInstance.fitBounds(bounds, {
+                                        padding: 50,
+                                        maxZoom: 15
+                                    });
+                                }
+                            }
+                        })
+                        .catch(error => console.error('Error filtering by address:', error));
+                });
+            });
+        } else {
+            suggestionsContainer.style.display = 'none';
+        }
+    }
+
+    // Initialize suggestions container
+    createSuggestionsContainer();
+
+    // Show recent addresses on focus
+    addressInput.addEventListener('focus', function() {
+        if (!this.value) {
+            fetch('/api/recent-addresses/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.suggestions) {
+                        showSuggestions(data.suggestions);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching recent addresses:', error);
+                });
+        }
+    });
+
+    // Handle input changes for autocomplete
+    addressInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        const query = this.value.trim();
+
+        if (query.length < 2) {
+            if (query.length === 0) {
+                // Get unique recent addresses
+                fetch('/api/recent-addresses/')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.suggestions) {
+                            // Filter unique suggestions before showing
+                            const uniqueSuggestions = data.suggestions.filter((suggestion, index, self) =>
+                                index === self.findIndex(s => s.value === suggestion.value)
+                            );
+                            showSuggestions(uniqueSuggestions);
+                        }
+                    });
+            } else {
+                suggestionsContainer.style.display = 'none';
+            }
+            return;
+        }
+
+        debounceTimer = setTimeout(() => {
+            fetch(`/api/address-suggestions/?query=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.suggestions) {
+                        showSuggestions(data.suggestions);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching address suggestions:', error);
+                    suggestionsContainer.style.display = 'none';
+                });
+        }, 300);
+    });
+
+    // Close suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!addressInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+            suggestionsContainer.style.display = 'none';
+        }
+    });
+
+    // Handle keyboard navigation
+    addressInput.addEventListener('keydown', function(e) {
+        if (!suggestionsContainer.style.display || suggestionsContainer.style.display === 'none') {
+            return;
+        }
+
+        const items = suggestionsContainer.querySelectorAll('.suggestion-item');
+        const activeItem = suggestionsContainer.querySelector('.suggestion-item.active');
+        let index = Array.from(items).indexOf(activeItem);
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                if (index < items.length - 1) {
+                    if (activeItem) activeItem.classList.remove('active');
+                    items[index + 1].classList.add('active');
+                }
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                if (index > 0) {
+                    if (activeItem) activeItem.classList.remove('active');
+                    items[index - 1].classList.add('active');
+                }
+                break;
+            case 'Enter':
+                e.preventDefault();
+                if (activeItem) {
+                    addressInput.value = activeItem.dataset.value;
+                    suggestionsContainer.style.display = 'none';
+                    // Add the same filtering logic as above
+                    const params = new URLSearchParams();
+                    params.append('address', activeItem.dataset.value);
+                    // ... rest of the filtering logic ...
+                }
+                break;
+            case 'Escape':
+                suggestionsContainer.style.display = 'none';
+                break;
+        }
+    });
+});
+
+// Update the statistics display function
+function updateStatistics(data = {}) {
+    try {
+        $('#totalDetections').text(data.total || 0);
+        $('#lastUpdate').text(new Date().toLocaleString('tr-TR'));
+
+        // Count active filters safely
+        const activeFilters = [
+            $('#bs-rangepicker-time').val(),
+            $('#departmentSelect').val(),
+            ($('#councilFilterSelect').val() || []).length > 0,
+            $('#addressFilter').val()
+        ].filter(Boolean).length;
+
+        $('#activeFilters').text(activeFilters);
+    } catch (error) {
+        console.error('Error updating statistics:', error);
+        // Set default values in case of error
+        $('#totalDetections').text('0');
+        $('#lastUpdate').text('-');
+        $('#activeFilters').text('0');
+    }
+}
+
+// Add event listeners for filter changes
+document.addEventListener('DOMContentLoaded', function() {
+    // Date range picker change
+    flatpickr("#bs-rangepicker-time", {
+        // ...existing flatpickr config...
+        onChange: function(selectedDates) {
+            if (selectedDates.length === 2) {
+                applyFilters();
+            }
+        }
+    });
+
+    // Department select change
+    $('#departmentSelect').on('change', applyFilters);
+
+    // Detection types select change
+    $('#councilFilterSelect').on('change', applyFilters);
+
+    // Address filter input (with debounce)
+    let addressTimeout;
+    $('#addressFilter').on('input', function() {
+        clearTimeout(addressTimeout);
+        addressTimeout = setTimeout(applyFilters, 500);
+    });
+
+    // Quick filter buttons - using querySelectorAll for safety
+    document.querySelectorAll('[onclick*="applyQuickFilter"]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            setTimeout(applyFilters, 100);
+        });
+    });
+
+    // Reset filters button - with null check
+    const resetButton = document.querySelector('[onclick="resetAllFilters"]');
+    if (resetButton) {
+        resetButton.addEventListener('click', function(e) {
+            e.preventDefault(); // Prevent default onclick behavior
+            resetAllFilters();
+            setTimeout(applyFilters, 100);
+        });
+    }
+
+    // Initial load
+    applyFilters();
+});
+
+// Update statistics display
+function updateStatistics(stats) {
+    $('#totalDetections').text(stats.total || 0);
+    $('#lastUpdate').text(new Date().toLocaleTimeString());
+
+    // Count active filters
+    const activeFilters = [
+        $('#bs-rangepicker-time').val(),
+        $('#departmentSelect').val(),
+        $('#councilFilterSelect').val()?.length > 0,
+        $('#addressFilter').val()
+    ].filter(Boolean).length;
+
+    $('#activeFilters').text(activeFilters);
+}
+
+// Add these new functions before the existing applyFilters function
+let isClustered = false;
+
+function toggleMarkerClustering() {
+    isClustered = !isClustered;
+    const button = document.querySelector('button[onclick="toggleMarkerClustering()"]');
+
+    if (isClustered) {
+        button.classList.remove('btn-outline-primary');
+        button.classList.add('btn-primary');
+        clusterMarkers();
+    } else {
+        button.classList.add('btn-outline-primary');
+        button.classList.remove('btn-primary');
+        unclusterMarkers();
+    }
+}
+
+function clusterMarkers() {
+    if (!mapInstance._markers || mapInstance._markers.length === 0) return;
+
+    // Remove existing navigation lines
+    removeNavigationLines();
+
+    // Sort markers by timestamp
+    const sortedMarkers = mapInstance._markers.sort((a, b) => {
+        const aTime = new Date(a._detection?.timestamp || 0);
+        const bTime = new Date(b._detection?.timestamp || 0);
+        return aTime - bTime;
+    });
+
+    // Draw navigation lines between consecutive markers
+    for (let i = 0; i < sortedMarkers.length - 1; i++) {
+        const currentMarker = sortedMarkers[i];
+        const nextMarker = sortedMarkers[i + 1];
+
+        drawNavigationLine(currentMarker, nextMarker, i);
+    }
+
+    // Create the navigation path
+    createNavigationPath(sortedMarkers);
+}
+
+function removeNavigationLines() {
+    // Remove existing navigation elements
+    document.querySelectorAll('.navigation-line').forEach(el => el.remove());
+}
+
+function drawNavigationLine(marker1, marker2, index) {
+    const coordinates1 = marker1.getLngLat();
+    const coordinates2 = marker2.getLngLat();
+
+    // Convert coordinates to pixel positions
+    const point1 = mapInstance.project([coordinates1.lng, coordinates1.lat]);
+    const point2 = mapInstance.project([coordinates2.lng, coordinates2.lat]);
+
+    // Create SVG for the navigation line
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'navigation-line');
+    svg.style.position = 'absolute';
+    svg.style.top = '0';
+    svg.style.left = '0';
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.pointerEvents = 'none';
+
+    // Create the highlight path
+    const highlightPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    highlightPath.setAttribute('class', 'navigation-highlight');
+    highlightPath.setAttribute('d', `M ${point1.x} ${point1.y} L ${point2.x} ${point2.y}`);
+
+    // Create the main path
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('class', 'navigation-path');
+    path.setAttribute('d', `M ${point1.x} ${point1.y} L ${point2.x} ${point2.y}`);
+
+    // Create arrow marker
+    const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    arrow.setAttribute('class', 'navigation-arrow');
+
+    // Calculate arrow position and rotation
+    const angle = Math.atan2(point2.y - point1.y, point2.x - point1.x);
+    const midX = (point1.x + point2.x) / 2;
+    const midY = (point1.y + point2.y) / 2;
+
+    arrow.setAttribute('points', '0,-6 12,0 0,6');
+    arrow.setAttribute('transform', `translate(${midX},${midY}) rotate(${angle * 180 / Math.PI})`);
+
+    // Add elements to SVG
+    svg.appendChild(highlightPath);
+    svg.appendChild(path);
+    svg.appendChild(arrow);
+
+    // Add SVG to map
+    mapInstance.getCanvasContainer().appendChild(svg);
+
+    // Update on map move
+    mapInstance.on('move', () => {
+        const newPoint1 = mapInstance.project([coordinates1.lng, coordinates1.lat]);
+        const newPoint2 = mapInstance.project([coordinates2.lng, coordinates2.lat]);
+
+        highlightPath.setAttribute('d', `M ${newPoint1.x} ${newPoint1.y} L ${newPoint2.x} ${newPoint2.y}`);
+        path.setAttribute('d', `M ${newPoint1.x} ${newPoint1.y} L ${newPoint2.x} ${newPoint2.y}`);
+
+        const newAngle = Math.atan2(newPoint2.y - newPoint1.y, newPoint2.x - newPoint1.x);
+        const newMidX = (newPoint1.x + newPoint2.x) / 2;
+        const newMidY = (newPoint1.y + newPoint2.y) / 2;
+
+        arrow.setAttribute('transform', `translate(${newMidX},${newMidY}) rotate(${newAngle * 180 / Math.PI})`);
+    });
+}
+
+function createNavigationPath(markers) {
+    if (markers.length < 2) return;
+
+    // Create SVG for the complete navigation path
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'navigation-line');
+    svg.style.position = 'absolute';
+    svg.style.top = '0';
+    svg.style.left = '0';
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+
+    // Create path string from all markers
+    const pathPoints = markers.map(marker => {
+        const coords = marker.getLngLat();
+        const point = mapInstance.project([coords.lng, coords.lat]);
+        return `${point.x},${point.y}`;
+    }).join(' L ');
+
+    // Create highlight area
+    const highlightPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+}
+
+function unclusterMarkers() {
+    removeNavigationLines();
+    // ...rest of existing unclusterMarkers code...
+}
+
+// ...rest of existing code...
+
+// Improved coordinate parsing function
+function parseCoordinate(value) {
+    if (typeof value === 'string') {
+        return parseFloat(value.replace(',', '.'));
+    }
+    return parseFloat(value);
+}
+
+// Override Mapbox popup close button behavior
+mapboxgl.Popup.prototype._onCloseButtonClick = function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Remove focus from close button before closing
+    if (this._closeButton) {
+        this._closeButton.blur();
+    }
+
+    // Remove aria-hidden attribute
+    if (this._container) {
+        this._container.removeAttribute('aria-hidden');
+    }
+
+    this.remove();
+};
+
+// Update marker creation in your fetchFilteredDetections function
+function fetchFilteredDetections(selectedTypes) {
+    // ...existing code...
+
+    fetch(`/api/stream/filtered-detections/?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+
+            if (data.success) {
+                const bounds = new mapboxgl.LngLatBounds();
+                let hasValidMarkers = false;
+
+                data.results.forEach(item => {
+
+                    if (item.lat && item.lng) {
+
+
+                        // Create marker element container
+                        const el = document.createElement('div');
+                        el.className = 'custom-marker';
+
+                        // Create marker icons container
+                        const iconContainer = document.createElement('div');
+                        iconContainer.className = 'marker-icons';
+
+                        // Log detection classes before creating icons
+
+                        // Add detection icon if available
+                        if (item.detection_classes && item.detection_classes.length > 0) {
+
+                            const firstDetection = item.detection_classes[0];
+                            const icon = document.createElement('img');
+                            icon.src = `/static/belediyeicons/${firstDetection.class_name}.png`;
+                            icon.className = 'marker-icon';
+                            icon.alt = firstDetection.class_name;
+
+                            iconContainer.appendChild(icon);
+                        } else {
+                            console.warn('No detection classes found for item:', item);
+                        }
+
+                        el.appendChild(iconContainer);
+
+                        // Create marker with proper positioning
+                        const marker = new mapboxgl.Marker({
+                            element: el,
+                            anchor: 'bottom'
+                        })
+                        .setLngLat([item.lng, item.lat]);
+
+                        // Debug popup content
+                        const popupContent = createPopupContent(item, item.detection_classes || []);
+
+                        marker.setPopup(
+                            new mapboxgl.Popup({offset: 25})
+                            .setHTML(popupContent)
+                        );
+
+                        // Add to map
+                        marker.addTo(mapInstance);
+
+                        // Store marker reference
+                        mapInstance._markers = mapInstance._markers || [];
+                        mapInstance._markers.push(marker);
+
+                        bounds.extend([item.lng, item.lat]);
+                        hasValidMarkers = true;
+                    } else {
+                        console.warn('Invalid coordinates for item:', item);
+                    }
+                });
+
+                if (hasValidMarkers && !bounds.isEmpty()) {
+                    mapInstance.fitBounds(bounds, {
+                        padding: 50,
+                        maxZoom: 15
+                    });
+                    console.log('Map bounds updated'); // Debug bounds update
+                } else {
+                    console.warn('No valid markers created');
+                }
+            } else {
+                console.error('API request was not successful:', data);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching filtered detections:', error);
+        });
+}
+
+// Add custom styles for the popup
+const customStyles = document.createElement('style');
+customStyles.textContent = `
+    .custom-popup .mapboxgl-popup-close-button {
+        padding: 0 6px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        position: absolute;
+        right: 0;
+        top: 0;
+        border-radius: 0 3px 0 0;
+    }
+
+    .custom-popup .mapboxgl-popup-close-button:focus {
+        outline: 2px solid #0078d4;
+        outline-offset: -2px;
+    }
+
+    .custom-popup .mapboxgl-popup-content {
+        padding: 15px;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+`;
+document.head.appendChild(customStyles);
+
+// Custom popup class to handle accessibility properly
+class AccessiblePopup extends mapboxgl.Popup {
+    constructor(options) {
+        super(options);
+        this._closeButton = null;
+    }
+
+    _createCloseButton() {
+        this._closeButton = document.createElement('button');
+        this._closeButton.type = 'button';
+        this._closeButton.className = 'mapboxgl-popup-close-button';
+        this._closeButton.setAttribute('aria-label', 'Close popup');
+        this._closeButton.innerHTML = '×';
+
+        // Remove aria-hidden and add proper focus management
+        this._closeButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this._closeButton.blur(); // Remove focus before closing
+            this.remove();
+        });
+
+        return this._closeButton;
+    }
+}
+
+
+// Add custom styles for better popup accessibility
+const accessibilityStyles = document.createElement('style');
+accessibilityStyles.textContent = `
+    .custom-popup .mapboxgl-popup-close-button {
+        padding: 8px;
+        font-size: 16px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: #666;
+        transition: color 0.2s ease;
+    }
+
+    .custom-popup .mapboxgl-popup-close-button:hover {
+        color: #000;
+    }
+
+    .custom-popup .mapboxgl-popup-close-button:focus {
+        outline: 2px solid #0078d4;
+        outline-offset: -2px;
+        color: #000;
+    }
+
+    .custom-popup .mapboxgl-popup-content {
+        padding: 15px;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+`;
+document.head.appendChild(accessibilityStyles);
+
+// Update the councilFilterSelect change handler to properly handle selected values
+$('#councilFilterSelect').select2({
+    placeholder: "Tespit türlerini seçin",
+    allowClear: true,
+    width: '100%',
+    closeOnSelect: false,
+    multiple: true,
+    templateResult: formatDetectionOption,
+    templateSelection: formatDetectionSelection
+}).on('change', function(e) {
+    // Prevent handling the event if we're in the middle of resetting
+    if (isResetting) return;
+
+    // Get selected values and ensure it's an array
+    let selectedTypes = $(this).val() || [];
+
+    // Filter out empty values BEFORE checking length
+    selectedTypes = selectedTypes.filter(type => type && type.trim() !== '');
+
+    console.log('Selected detection types:', selectedTypes);
+
+    // Reset all markers before applying new filters
+    resetAllMarkers();
+
+    if (selectedTypes.length > 0) {
+        // Show loading indicator if available
+        const loadingIndicator = document.getElementById('mapLoadingIndicator');
+        if (loadingIndicator) loadingIndicator.style.display = 'block';
+
+        fetchFilteredDetections(selectedTypes);
+    } else {
+        // When nothing is selected, just reset markers without triggering another change
+        resetAllMarkers();
+
+        // Remove filter status if it exists
+        const existingStatus = document.querySelector('.filter-status-container');
+        if (existingStatus) {
+            existingStatus.remove();
+        }
+    }
+});
+
+// Update fetchFilteredDetections to properly handle the selected types
+function fetchFilteredDetections(selectedTypes) {
+    console.log('Fetching filtered detections for types:', selectedTypes);
+
+    // Ensure selectedTypes is an array and filter out empty values
+    selectedTypes = Array.isArray(selectedTypes) ? selectedTypes.filter(type => type && type.trim() !== '') : [];
+
+    if (selectedTypes.length === 0) {
+        console.log('No selected types, resetting markers');
+        resetAllMarkers();
+        return;
+    }
+
+    // Reset markers before fetching new ones
+    resetAllMarkers();
+
+    // Create URL parameters directly as URLSearchParams
+    const params = new URLSearchParams();
+
+    // Add selected types - this is the key part for filtering
+    selectedTypes.forEach(type => {
+        params.append('detection_types[]', type);
+    });
+
+    // Add date range if available
+    const dateRange = document.getElementById('bs-rangepicker-time').value;
+    if (dateRange) {
+        try {
+            const dates = dateRange.split(' ile ');
+            if (dates.length === 2) {
+                const start = new Date(dates[0]);
+                const end = new Date(dates[1]);
+                params.append('start_date', start.toISOString());
+                params.append('end_date', end.toISOString());
+            }
+        } catch (error) {
+            console.error('Error parsing date range:', error);
+        }
+    }
+
+    // Add department filter if selected
+    const departmentSelect = document.getElementById('departmentSelect');
+    if (departmentSelect && departmentSelect.value) {
+        params.append('department', departmentSelect.value);
+    }
+
+    // Add address filter if entered
+    const addressFilter = document.getElementById('addressFilter');
+    if (addressFilter && addressFilter.value.trim()) {
+        params.append('address', addressFilter.value.trim());
+    }
+
+    console.log('API request params:', params.toString());
+
+    // Make the API request to get filtered detections
+    fetch(`/api/stream/filtered-detections/?${params.toString()}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Filtered data received:', data);
+
+            if (data.success) {
+                const bounds = new mapboxgl.LngLatBounds();
+                let hasValidMarkers = false;
+
+                // Process each result and create markers
+                data.results.forEach(item => {
+                    if (item.lat && item.lng) {
+                        // Create marker element container
+                        const el = document.createElement('div');
+                        el.className = 'custom-marker';
+
+                        // Create marker icons container
+                        const iconContainer = document.createElement('div');
+                        iconContainer.className = 'marker-icons';
+
+                        // Add detection icon if available
+                        if (item.detection_classes && item.detection_classes.length > 0) {
+                            const firstDetection = item.detection_classes[0];
+                            const icon = document.createElement('img');
+                            icon.src = `/static/belediyeicons/${firstDetection.class_name}.png`;
+                            icon.className = 'marker-icon';
+                            icon.alt = firstDetection.class_name;
+
+                            iconContainer.appendChild(icon);
+                        } else {
+                            console.warn('No detection classes found for item:', item);
+                        }
+
+                        el.appendChild(iconContainer);
+
+                        // Create marker with proper positioning
+                        const marker = new mapboxgl.Marker({
+                            element: el,
+                            anchor: 'bottom'
+                        })
+                        .setLngLat([item.lng, item.lat]);
+
+                        // Create popup with lazy loading
+                        const popup = new mapboxgl.Popup({
+                            offset: 25,
+                            closeButton: true,
+                            closeOnClick: false,
+                            maxWidth: '300px',
+                            className: 'custom-popup'
+                        }).setHTML(createPopupContent(item));
+
+                        // Add event listener for popup open to load images
+                        popup.on('open', function() {
+                            // Close other popups
+                            if (currentOpenPopup && currentOpenPopup !== popup) {
+                                currentOpenPopup.remove();
+                            }
+
+                            // Set this as the current open popup
+                            currentOpenPopup = popup;
+
+                            // Load lazy images in the popup
+                            setTimeout(() => {
+                                const popupContent = popup.getElement();
+                                if (popupContent) {
+                                    const lazyImages = popupContent.querySelectorAll('.lazy-detection-image');
+                                    lazyImages.forEach(img => {
+                                        if (img.dataset.src) {
+                                            img.src = img.dataset.src;
+                                        }
+                                    });
+                                }
+                            }, 50);
+                        });
+
+                        // Track popup closing
+                        popup.on('close', () => {
+                            if (currentOpenPopup === popup) {
+                                currentOpenPopup = null;
+                            }
+                        });
+
+                        // Set the popup on the marker
+                        marker.setPopup(popup);
+
+                        // Custom click handler for the marker
+                        el.addEventListener('click', (e) => {
+                            // If there's already an open popup, close it first
+                            if (currentOpenPopup && currentOpenPopup !== popup) {
+                                currentOpenPopup.remove();
+                            }
+
+                            // Set this as the current open popup
+                            currentOpenPopup = popup;
+
+                            // Open the popup
+                            popup.setLngLat([item.lng, item.lat]).addTo(mapInstance);
+                        });
+
+                        // Add to map
+                        marker.addTo(mapInstance);
+
+                        // Store marker reference and detection data
+                        mapInstance._markers = mapInstance._markers || [];
+                        marker._detection = item; // Store detection data on marker for later use
+                        mapInstance._markers.push(marker);
+
+                        bounds.extend([item.lng, item.lat]);
+                        hasValidMarkers = true;
+                    } else {
+                        console.warn('Invalid coordinates for item:', item);
+                    }
+                });
+
+                // Fit map to show all markers if we have valid ones
+                if (hasValidMarkers && !bounds.isEmpty()) {
+                    mapInstance.fitBounds(bounds, {
+                        padding: 50,
+                        maxZoom: 15
+                    });
+                    console.log('Map bounds updated to show all filtered markers');
+                } else {
+                    console.warn('No valid markers created after filtering');
+                }
+
+                // Update statistics if we have that function
+                if (typeof updateStatistics === 'function') {
+                    updateStatistics({
+                        total: data.results.length,
+                        filtered_types: selectedTypes
+                    });
+                }
+            } else {
+                console.error('API request was not successful:', data);
+            }
+
+            // Hide loading indicator if available
+            const loadingIndicator = document.getElementById('mapLoadingIndicator');
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
+        })
+        .catch(error => {
+            console.error('Error fetching filtered detections:', error);
+
+            // Hide loading indicator if available
+            const loadingIndicator = document.getElementById('mapLoadingIndicator');
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
+        });
+}
+
+// Update the reset function to clear the select2 dropdown properly
+function resetFiltering() {
+    // Set flag to prevent recursion
+    isResetting = true;
+
+    try {
+        // Reset active filter
+        activeFilter = null;
+
+        // Clear Select2 selection
+        $('#councilFilterSelect').val(null).trigger('change.select2');
+
+        // Reset all markers
+        resetAllMarkers();
+
+        // Reset all icons to active state
+        document.querySelectorAll('.map-icon').forEach(icon => {
+            icon.classList.add('active');
+            const checkbox = icon.querySelector('.icon-checkbox');
+            if (checkbox) checkbox.checked = true;
+        });
+
+        // Remove filter status if it exists
+        const existingStatus = document.querySelector('.filter-status-container');
+        if (existingStatus) {
+            existingStatus.remove();
+        }
+    } finally {
+        // Reset the flag
+        isResetting = false;
+    }
+}
+</script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+
+
+</script>
+{% endblock page_js %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="map-controls">
+                    <div class="row g-3 p-3">
+                        <div class="col-md-3">
+                            <div class="input-group">
+                                <input type="text" id="bs-rangepicker-time" class="form-control" placeholder="Tarih seçin" />
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="ti ti-calendar"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="setDateRange('today')">Bugün</a></li>
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="setDateRange('week')">Bu Hafta</a></li>
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="setDateRange('month')">Son 1 Ay</a></li>
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="setDateRange('threemonths')">Son 3 Ay</a></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <input type="text" id="addressFilter" class="form-control" placeholder="Adres ara...">
+                        </div>
+
+                        <div class="col-md-3">
+                            <select name="councilFilterSelect" class="form-select" id="councilFilterSelect" multiple="multiple">
+                                {% for class_data in class_data %}
+                                    <option value="{{ class_data.Name }}"
+                                            data-icon="/static/belediyeicons/{{ class_data.Name }}.png"
+                                            data-count="{{ class_data.count }}">
+                                        {{ class_data.Turkish }} ({{ class_data.count }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-primary btn-sm" onclick="applyQuickFilter('last24hours')">
+                                    Son 24 Saat
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="toggleMarkerClustering()">
+                                    <i class="fas fa-object-group me-1"></i> Navigasyon Birleştir
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="resetAllFilters()">
+                                    Filtreleri Sıfırla
+                                </button>
+                            </div>
+
+                          </div>
+                    </div>
+                </div>
+                <div class="row g-3 px-3 pb-3">
+    <div class="col-12">
+        <div class="info-data d-flex justify-content-between align-items-center">
+            <div>
+                <span id="totalDetections">0</span> tespit gösteriliyor
+            </div>
+            <div class="d-flex gap-3">
+                <span><i class="fas fa-calendar"></i> Son güncelleme: <span id="lastUpdate">-</span></span>
+                <span><i class="fas fa-filter"></i> Aktif filtreler: <span id="activeFilters">0</span></span>
+            </div>
+        </div>
+    </div>
+</div>
+                <div class="map-container">
+                    <div id="layerControl" style="width: 100%; height: calc(100vh - 20px);"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detection Detail Modal -->
+<div class="modal fade" id="detectionDetailModal" tabindex="-1" aria-labelledby="detectionDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-body">
+                <!-- Dynamic content will be inserted here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

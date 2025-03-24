@@ -1,0 +1,152 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Kanban - Apps{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/jkanban/jkanban.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/select2/select2.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/flatpickr/flatpickr.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/quill/typography.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/quill/katex.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/quill/editor.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/moment/moment.js' %}"></script>
+<script src="{% static 'vendor/libs/flatpickr/flatpickr.js' %}"></script>
+<script src="{% static 'vendor/libs/select2/select2.js' %}"></script>
+<script src="{% static 'vendor/libs/jkanban/jkanban.js' %}"></script>
+<script src="{% static 'vendor/libs/quill/katex.js' %}"></script>
+<script src="{% static 'vendor/libs/quill/quill.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/app-kanban.css' %}" />
+{% endblock page_css %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/app-kanban.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<div class="app-kanban">
+
+  <!-- Add new board -->
+  <div class="row">
+    <div class="col-12">
+      <form class="kanban-add-new-board">
+        <label class="kanban-add-board-btn" for="kanban-add-board-input">
+          <i class="ti ti-plus"></i>
+          <span class="align-middle">Yeni Sütün Ekle</span>
+        </label>
+        <input type="text" class="form-control w-px-250 kanban-add-board-input mb-4 d-none" placeholder="Add Board Title" id="kanban-add-board-input" required />
+        <div class="mb-4 kanban-add-board-input d-none">
+          <button class="btn btn-primary btn-sm me-4">Add</button>
+          <button type="button" class="btn btn-label-secondary btn-sm kanban-add-board-cancel-btn">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Kanban Wrapper -->
+  <div class="kanban-wrapper"></div>
+
+  <!-- Edit Task/Task & Activities -->
+  <div class="offcanvas offcanvas-end kanban-update-item-sidebar">
+    <div class="offcanvas-header border-bottom">
+      <h5 class="offcanvas-title">Görevi Düzenle</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+      <div class="nav-align-top">
+        <ul class="nav nav-tabs mb-5 rounded-0">
+          <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-update">
+              <i class="ti ti-edit ti-18px me-1_5"></i>
+              <span class="align-middle">Düzenle</span>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-activity">
+              <i class="ti ti-chart-pie-2 ti-18px me-1_5"></i>
+              <span class="align-middle">Aktivite</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+      <div class="tab-content p-0">
+        <!-- Update item/tasks -->
+        <div class="tab-pane fade show active" id="tab-update" role="tabpanel">
+          <form>
+            <div class="mb-5">
+              <label class="form-label" for="title">Başlık</label>
+              <input type="text" id="title" class="form-control" placeholder="Başlık Giriniz" />
+            </div>
+            <div class="mb-5">
+              <label class="form-label" for="due-date">Bitiş Tarihi</label>
+              <input type="text" id="due-date" class="form-control" placeholder="Bitiş Tarihi Giriniz" />
+            </div>
+            <div class="mb-5">
+              <label class="form-label" for="label">Etiket</label>
+              <select class="select2 select2-label form-select" id="label">
+                <option data-color="bg-label-success" value="UX">Kullanıcı Deneyimi</option>
+                <option data-color="bg-label-warning" value="Images">Görseller</option>
+                <option data-color="bg-label-info" value="Info">Bilgi</option>
+                <option data-color="bg-label-danger" value="Code Review">Kod İnceleme</option>
+                <option data-color="bg-label-secondary" value="App">Uygulama</option>
+                <option data-color="bg-label-primary" value="Charts & Maps">Grafikler & Haritalar</option>
+              </select>
+            </div>
+            <div class="mb-5">
+              <label class="form-label">Atanan Kişiler</label>
+              <div class="assigned d-flex flex-wrap"></div>
+            </div>
+            <div class="mb-5">
+              <label class="form-label" for="attachments">Ekler</label>
+              <div>
+                <input type="file" class="form-control" id="attachments" />
+              </div>
+            </div>
+            <div class="mb-5">
+              <label class="form-label">Yorum</label>
+              <div class="comment-editor border-bottom-0"></div>
+              <div class="d-flex justify-content-end">
+                <div class="comment-toolbar">
+                  <span class="ql-formats me-0">
+                    <button class="ql-bold"></button>
+                    <button class="ql-italic"></button>
+                    <button class="ql-underline"></button>
+                    <button class="ql-link"></button>
+                    <button class="ql-image"></button>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="d-flex flex-wrap">
+                <button type="button" class="btn btn-primary me-4" data-bs-dismiss="offcanvas">
+                  Güncelle
+                </button>
+                <button type="button" class="btn btn-label-danger" data-bs-dismiss="offcanvas">
+                  Sil
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+        <!-- Activities -->
+        <div class="tab-pane fade text-heading" id="tab-activity" role="tabpanel">
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

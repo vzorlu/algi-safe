@@ -1,0 +1,94 @@
+[
+  {
+    "id": "board-in-progress",
+    "title": "Beklemede",
+    "item": [
+      {
+        "id": "in-progress-1",
+        "title": "Ağaç Budama Talebi - Barbaros Mah.",
+        "comments": "3",
+        "badge-text": "Ağaç",
+        "badge": "success",
+        "due-date": "15 Mart",
+        "members": [
+          "Ahmet",
+          "Mehmet"
+        ]
+      },
+      {
+        "id": "in-progress-2",
+        "title": "Kaldırım Çökmesi - Fetih Mah.",
+        "comments": "5",
+        "badge-text": "Acil",
+        "badge": "danger",
+        "due-date": "12 Mart",
+        "members": [
+          "Hasan",
+          "Ali"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "board-in-review",
+    "title": "İşlemde",
+    "item": [
+      {
+        "id": "in-review-1",
+        "title": "Çukur Onarımı - İçerenköy",
+        "comments": "4",
+        "badge-text": "Yol",
+        "badge": "info",
+        "due-date": "14 Mart",
+        "members": [
+          "Mustafa",
+          "Kemal"
+        ]
+      },
+      {
+        "id": "in-review-2",
+        "title": "Kırık Refüj Tamiri - Atatürk Mah.",
+        "comments": "6",
+        "badge-text": "Refüj",
+        "badge": "warning",
+        "due-date": "13 Mart",
+        "members": [
+          "Ayşe",
+          "Fatma",
+          "Hayriye",
+          "Zeynep"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "board-done",
+    "title": "Tamamlandı",
+    "item": [
+      {
+        "id": "done-1",
+        "title": "Yağmur Mazgalı Temizliği - Kayışdağı",
+        "comments": "2",
+        "badge-text": "Mazgal",
+        "badge": "secondary",
+        "due-date": "10 Mart",
+        "members": [
+          "Osman",
+          "Orhan",
+          "Selim"
+        ]
+      },
+      {
+        "id": "done-2",
+        "title": "Asfalt Yaması - Küçükbakkalköy",
+        "comments": "5",
+        "badge-text": "Asfalt",
+        "badge": "primary",
+        "due-date": "9 Mart",
+        "members": [
+          "İbrahim"
+        ]
+      }
+    ]
+  }
+]

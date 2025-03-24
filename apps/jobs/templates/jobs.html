@@ -1,0 +1,240 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Dashboard - CRM{% endblock title %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/apex-charts/apex-charts.css' %}" />
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" />
+<link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.0/mapbox-gl-draw.css" rel="stylesheet" />
+<style>
+.sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 320px;
+    height: 100vh;
+    background: #1e1e2d;
+    padding: 20px;
+    overflow-y: auto;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    z-index: 1;
+    color: #e4e6ef;
+}
+
+.sidebar h4 {
+    color: #fff;
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #2b2b40;
+}
+
+.change-item {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background: #2b2b40;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-left: 4px solid #f64e60;
+}
+
+.change-item:hover {
+    background: #323248;
+    transform: translateX(5px);
+}
+
+.change-item strong {
+    color: #fff;
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+}
+
+.change-item small {
+    color: #92929f;
+    display: block;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+/* Scrollbar tasarımı */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: #1e1e2d;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: #2b2b40;
+    border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: #323248;
+}
+
+</style>
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/apex-charts/apexcharts.js' %}"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.0/mapbox-gl-draw.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.2.4/fabric.min.js"></script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+<script>
+mapboxgl.accessToken = 'pk.eyJ1Ijoidm9sa2Fuem9ybHUiLCJhIjoiY202N2pqb24yMDRrOTJpczl3eGRycTFwNyJ9.TnKl17J4LRPuCO_MYal09w';
+
+const atasehirBounds = [
+    [29.1000, 40.9700], // Southwest coordinates
+    [29.1500, 41.0000]  // Northeast coordinates
+];
+
+const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/satellite-streets-v11',
+    center: [29.1275, 40.9847],
+    zoom: 16,
+    maxBounds: atasehirBounds
+});
+
+const draw = new MapboxDraw({
+    displayControlsDefault: false,
+    controls: {
+        polygon: true,
+        line_string: true,
+        point: true,
+        trash: true
+    }
+});
+
+map.addControl(draw);
+
+const buildingChanges = [
+    {
+        id: 2,
+        coordinates: [29.1280, 40.9850],
+        changes: 'İnşaat: Teras kapatma (15.02.2025)',
+        details: 'Kaçak eklenti tespit edildi'
+    },
+    {
+        id: 3,
+        coordinates: [29.1270, 40.9845],
+        changes: 'İnşaat: Cephe değişikliği (16.02.2025)',
+        details: 'İzinsiz cephe kaplaması'
+    },
+    {
+        id: 4,
+        coordinates: [29.1278, 40.9849],
+        changes: 'İnşaat: Balkon kapatma (14.02.2025)',
+        details: 'Ruhsatsız cam balkon'
+    },
+    {
+        id: 5,
+        coordinates: [29.1273, 40.9846],
+        changes: 'İnşaat: Çatı değişimi (13.02.2025)',
+        details: 'İzinsiz çatı katı'
+    },
+    {
+        id: 7,
+        coordinates: [29.1277, 40.9844],
+        changes: 'İnşaat: Otopark alanı (11.02.2025)',
+        details: 'Yeşil alandan dönüşüm'
+    },
+    {
+        id: 8,
+        coordinates: [29.1268, 40.9851],
+        changes: 'Yeşil Alan Azalması (10.02.2025)',
+        details: 'Yeşil Alan'
+    },
+    {
+        id: 9,
+        coordinates: [29.1285, 40.9843],
+        changes: 'İnşaat: Duvar yıkımı (09.02.2025)',
+        details: 'Taşıyıcı duvar müdahale'
+    }
+];
+
+function createSidebarContent() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.innerHTML = `
+        <h4>01-10 Şubat Farklılıklar</h4>
+        <div id="changes-list">
+            ${buildingChanges.map(change => `
+                <div class="change-item" data-coordinates="${change.coordinates}">
+                    <strong>${change.changes}</strong><br>
+                    <small>${change.date} - ${change.address}</small><br>
+                    <small>${change.details}</small>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    // Sidebar item click events
+    document.querySelectorAll('.change-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            const coords = e.currentTarget.dataset.coordinates.split(',').map(Number);
+            map.flyTo({
+                center: coords,
+                zoom: 18,
+                essential: true
+            });
+
+            // Highlight the building
+            draw.deleteAll();
+            draw.add({
+                type: 'Feature',
+                geometry: {
+                    type: 'Polygon',
+                    coordinates: [[
+                        [coords[0]-0.0001, coords[1]-0.0001],
+                        [coords[0]+0.0001, coords[1]-0.0001],
+                        [coords[0]+0.0001, coords[1]+0.0001],
+                        [coords[0]-0.0001, coords[1]+0.0001],
+                        [coords[0]-0.0001, coords[1]-0.0001]
+                    ]]
+                }
+            });
+        });
+    });
+}
+
+map.on('load', () => {
+    // Add 3D building layer
+    map.addLayer({
+        'id': 'building-3d',
+        'source': 'composite',
+        'source-layer': 'building',
+        'type': 'fill-extrusion',
+        'minzoom': 15,
+        'paint': {
+            'fill-extrusion-color': '#aaa',
+            'fill-extrusion-height': ['get', 'height'],
+            'fill-extrusion-opacity': 0.6
+        }
+    });
+
+    createSidebarContent();
+});
+</script>
+{% endblock page_js %}
+
+{% block content %}
+<div class="row g-0">
+    <div class="col-12 position-relative">
+        <div class="sidebar" id="sidebar"></div>
+        <div id="map" style="width: 100vw; height: 100vh;"></div>
+    </div>
+</div>
+{% endblock %}

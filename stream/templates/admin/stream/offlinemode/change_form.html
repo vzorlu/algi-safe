@@ -1,0 +1,176 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  .progress {
+    height: 20px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  .progress-bar {
+    float: left;
+    width: 0;
+    height: 100%;
+    font-size: 12px;
+    line-height: 20px;
+    color: #fff;
+    text-align: center;
+    background-color: #337ab7;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+    transition: width .6s ease;
+  }
+  #upload-progress-container {
+    display: none;
+    margin-top: 10px;
+  }
+  .upload-info {
+    font-size: 12px;
+    margin-top: 5px;
+  }
+</style>
+{% endblock %}
+
+{% block submit_buttons_bottom %}
+  <div id="upload-progress-container">
+    <div class="progress">
+      <div id="upload-progress-bar" class="progress-bar" role="progressbar" aria-valuenow="0"
+           aria-valuemin="0" aria-valuemax="100" style="width: 0%;">
+        0%
+      </div>
+    </div>
+    <div class="upload-info">
+      <span id="upload-speed">0 KB/s</span> |
+      <span id="upload-size">0 KB / 0 KB</span> |
+      <span id="upload-time">Estimated time: calculating...</span>
+    </div>
+  </div>
+  {{ block.super }}
+{% endblock %}
+
+{% block admin_change_form_document_ready %}
+{{ block.super }}
+<script>
+(function($) {
+  // Show progress bar when a file is selected
+  $('input[type="file"]').on('change', function() {
+    if (this.files.length > 0) {
+      $('#upload-progress-container').show();
+    }
+  });
+
+  // Handle form submission with progress tracking
+  $('#offlinemode_form').submit(function() {
+    var $form = $(this);
+    var $fileInput = $form.find('input[type="file"]');
+
+    if ($fileInput[0].files.length === 0) {
+      return true; // No file to upload, proceed normally
+    }
+
+    // Show progress container
+    $('#upload-progress-container').show();
+
+    var xhr = new XMLHttpRequest();
+    var formData = new FormData($form[0]);
+
+    // Setup progress tracking
+    xhr.upload.addEventListener("progress", function(e) {
+      if (e.lengthComputable) {
+        var percentComplete = Math.round((e.loaded / e.total) * 100);
+        var loadedSize = formatFileSize(e.loaded);
+        var totalSize = formatFileSize(e.total);
+        var speed = calculateSpeed(e.loaded);
+        var timeRemaining = estimateTimeRemaining(e.loaded, e.total);
+
+        // Update progress bar
+        $('#upload-progress-bar').css('width', percentComplete + '%').attr('aria-valuenow', percentComplete).text(percentComplete + '%');
+        $('#upload-speed').text(speed);
+        $('#upload-size').text(loadedSize + ' / ' + totalSize);
+        $('#upload-time').text('Estimated time: ' + timeRemaining);
+      }
+    }, false);
+
+    // Handle completion
+    xhr.addEventListener("load", function(e) {
+      if (xhr.status === 200) {
+        window.location.href = xhr.responseURL || '';
+      } else {
+        // Allow form to submit normally if there's an error
+        $form.unbind('submit').submit();
+      }
+    }, false);
+
+    // Send the form data
+    xhr.open("POST", $form.attr('action'));
+    xhr.send(formData);
+
+    // Prevent default form submission
+    return false;
+  });
+
+  // Tracking variables for speed calculation
+  var lastLoaded = 0;
+  var lastTime = Date.now();
+
+  // Calculate upload speed
+  function calculateSpeed(loaded) {
+    var now = Date.now();
+    var timeDiff = now - lastTime;
+    if (timeDiff > 500) { // Update every 500ms
+      var loadedDiff = loaded - lastLoaded;
+      var speed = (loadedDiff / timeDiff) * 1000; // bytes per second
+      lastLoaded = loaded;
+      lastTime = now;
+      return formatFileSize(speed) + '/s';
+    }
+    return $('#upload-speed').text();
+  }
+
+  // Estimate remaining time
+  function estimateTimeRemaining(loaded, total) {
+    var now = Date.now();
+    var timeDiff = now - lastTime;
+    if (timeDiff > 500 && loaded > 0) {
+      var loadedDiff = loaded - lastLoaded;
+      if (loadedDiff > 0) {
+        var speed = loadedDiff / timeDiff; // bytes per millisecond
+        var remaining = (total - loaded) / speed; // milliseconds remaining
+        return formatTime(remaining);
+      }
+    }
+    return 'calculating...';
+  }
+
+  // Format file size for display
+  function formatFileSize(bytes) {
+    if (bytes < 1024) {
+      return bytes + ' B';
+    } else if (bytes < 1024 * 1024) {
+      return (bytes / 1024).toFixed(1) + ' KB';
+    } else if (bytes < 1024 * 1024 * 1024) {
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    } else {
+      return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+    }
+  }
+
+  // Format time for display
+  function formatTime(milliseconds) {
+    if (milliseconds < 1000) {
+      return 'less than a second';
+    } else if (milliseconds < 60000) {
+      return Math.floor(milliseconds / 1000) + ' seconds';
+    } else if (milliseconds < 3600000) {
+      return Math.floor(milliseconds / 60000) + ' minutes';
+    } else {
+      return Math.floor(milliseconds / 3600000) + ' hours';
+    }
+  }
+})(django.jQuery);
+</script>
+{% endblock %}
