@@ -1,0 +1,23 @@
+// Academy course detail
+
+'use strict';
+
+(function () {
+  // video
+
+  const htmlElement = document.getElementsByTagName('html')[0];
+  const stick = document.querySelector('.stick-top');
+
+  function TopSticky() {
+    if (htmlElement.classList.contains('layout-navbar-fixed')) {
+      stick.classList.add('course-content-fixed');
+    } else {
+      stick.classList.remove('course-content-fixed');
+    }
+  }
+
+  TopSticky();
+  window.onscroll = function () {
+    TopSticky();
+  };
+})();
