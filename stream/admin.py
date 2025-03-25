@@ -2,7 +2,7 @@ from django.contrib import admin
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 from import_export.formats import base_formats
-from .models import Detection, StreamImage, Notification, NotificationType, ClassData, OfflineMode, OfflineVideoLocation
+from .models import Detection, StreamImage, Notification, NotificationType, ClassData, OfflineMode
 from .forms import OfflineModeForm
 
 
@@ -54,9 +54,7 @@ class OfflineModeResource(resources.ModelResource):
         export_order = (
             "id",
             "video_file",
-            "coordinates_json",
             "device_name",
-            "area",
             "processed",
             "created_at",
             "updated_at",
@@ -75,12 +73,6 @@ class OfflineModeResource(resources.ModelResource):
     def get_fields(self):
         fields = super().get_fields()
         return fields
-
-
-class OfflineVideoLocationInline(admin.TabularInline):
-    model = OfflineVideoLocation
-    extra = 0
-    readonly_fields = ("timestamp", "latitude", "longitude", "address", "speed", "heading")
 
 
 @admin.register(Notification)
@@ -135,6 +127,5 @@ class OfflineModeAdmin(ImportExportModelAdmin):
     list_filter = ("processed", "area", "created_at")
     search_fields = ("device_name", "area")
     readonly_fields = ("created_at", "updated_at")
-    inlines = [OfflineVideoLocationInline]
     formats = [base_formats.CSV, base_formats.XLS, base_formats.XLSX, base_formats.JSON]
     change_form_template = "admin/stream/offlinemode/change_form.html"

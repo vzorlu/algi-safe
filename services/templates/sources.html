@@ -167,11 +167,7 @@
 
 <!-- Kaynak Listesi -->
 <div class="col-md">
-  <div class="card mb-6">
-    <div class="card-body">
-      <div class="card-title header-elements">
-        <h5 class="m-0 me-2">Kaynak Listesi<span class="badge bg-primary rounded-pill">{{ sources|length }}</span>
-        </h5>
+  <div class="mb-6">
         <div class="card-title-elements ms-auto">
           <button
           type="button"
@@ -182,8 +178,6 @@
         >
           <i class="ti ti-plus me-1"></i>Kaynak Ekle</button>
         </div>
-      </div>
-    </div>
   </div>
 </div>
 <div class="row row-cols-1 row-cols-md-3 g-6 mb-12">
@@ -225,6 +219,57 @@
                     data-source-is-record="{{ source.is_record|yesno:'true,false' }}">
               Düzenle
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Offline Videos -->
+  {% for video in videos %}
+  <div class="col">
+    <div class="card h-100 video-player-card"
+         data-source-id="offline-{{ video.id }}"
+         data-source-url="{{ video.video_file.url }}"
+         data-source-title="{{ video.title }}">
+      <div class="card-body p-0 position-relative">
+        <div class="video-thumbnail-container">
+          {% if video.thumbnail %}
+          <img class="card-img video-thumbnail" src="{{ video.thumbnail.url }}" alt="{{ video.title }}" />
+          {% else %}
+          <div class="card-img video-thumbnail"></div>
+          {% endif %}
+
+          <!-- Play button overlay -->
+          <div class="play-button-overlay">
+            <button class="btn btn-play-video" data-video-id="{{ video.id }}">
+              <i class="ti ti-player-play fs-1"></i>
+            </button>
+          </div>
+
+          <!-- Video info overlay -->
+          <div class="video-info-overlay">
+            <span class="badge bg-warning">Offline</span>
+            <h5 class="text-white">{{ video.title }}</h5>
+            <p class="text-white-50 small mb-0">{{ video.description|default:"No description"|truncatechars:50 }}</p>
+          </div>
+        </div>
+
+        <div class="video-controls p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted">Video ID: {{ video.id }}</small>
+            <div>
+              <button class="btn btn-sm btn-warning edit-offline-video"
+                      data-video-id="{{ video.id }}"
+                      data-video-title="{{ video.title }}"
+                      data-video-description="{{ video.description }}">
+                <i class="ti ti-edit"></i> Düzenle
+              </button>
+              <a href="/api/stream/offline-mode/?video_id={{ video.id }}" class="btn btn-sm btn-primary" target="_blank">
+                <i class="ti ti-player-play"></i> İşle
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -376,30 +421,30 @@
     });
 
     // Add this JavaScript
-// Update the refresh source click handler
-$(document).on('click', '.refresh-source', function() {
-  const sourceId = $(this).data('source-id');
-  const imgElement = $(this).closest('.card').find('.card-img-top');
+    // Update the refresh source click handler
+    $(document).on('click', '.refresh-source', function() {
+      const sourceId = $(this).data('source-id');
+      const imgElement = $(this).closest('.card').find('.card-img-top');
 
-  $.ajax({
-    url: `/services/sources/refresh-image/${sourceId}/`,  // Updated URL path
-    method: 'POST',
-    headers: {
-      'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()  // Add CSRF token
-    },
-    success: function(response) {
-      if (response.status === 'success') {
-        // Update image with new timestamp to force refresh
-        imgElement.attr('src', response.image_url + '?t=' + new Date().getTime());
-      } else {
-        alert('Error: ' + response.message);
-      }
-    },
-    error: function(xhr, status, error) {
-      alert('Image refresh failed: ' + error);
-    }
-  });
-});
+      $.ajax({
+        url: `/services/sources/refresh-image/${sourceId}/`,  // Updated URL path
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()  // Add CSRF token
+        },
+        success: function(response) {
+          if (response.status === 'success') {
+            // Update image with new timestamp to force refresh
+            imgElement.attr('src', response.image_url + '?t=' + new Date().getTime());
+          } else {
+            alert('Error: ' + response.message);
+          }
+        },
+        error: function(xhr, status, error) {
+          alert('Image refresh failed: ' + error);
+        }
+      });
+    });
 
     // Delete button click handler
     $('.delete-source').on('click', function() {
@@ -430,39 +475,150 @@ $(document).on('click', '.refresh-source', function() {
       });
     });
 
+    // Handle offline videos
+    $('.edit-offline-video').on('click', function(e) {
+      e.stopPropagation();
+      const videoId = $(this).data('video-id');
+      const videoTitle = $(this).data('video-title');
+      const videoDescription = $(this).data('video-description');
 
-    // Update source form submission
-    $('#form-update-source').on('submit', function(e) {
-      e.preventDefault();
-      let formData = new FormData(this);
-
-      $.ajax({
-        url: `/services/sources/update-source/${currentSourceId}/`,
-        method: 'PUT',
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function(response) {
-          if (response.status === 'success') {
-            location.reload();
-          } else {
-            alert('Error: ' + response.message);
-          }
-        },
-        error: function(xhr, status, error) {
-          alert('An error occurred: ' + error);
-        }
-      });
+      // You can implement edit functionality for offline videos here
+      // For now, just navigate to the video process view
+      window.location.href = `/offline-mode.html?video_id=${videoId}`;
     });
 
-    // Add click handler for source cards
+    // Update source cards click to handle offline videos
     $('.source-card').on('click', function(e) {
       // Don't trigger if clicking buttons inside the card
       if (!$(e.target).closest('.btn').length) {
         const sourceId = $(this).data('source-id');
-        window.location.href = `/services/task-add/?source_id=${sourceId}`;
+        if (sourceId.toString().startsWith('offline-')) {
+          // It's an offline video
+          const videoId = sourceId.replace('offline-', '');
+          window.location.href = `/offline-mode.html?video_id=${videoId}`;
+        } else {
+          // It's a regular source
+          window.location.href = `/services/task-add/?source_id=${sourceId}`;
+        }
+      }
+    });
+
+    // Play button click handler
+    $('.btn-play-video').on('click', function(e) {
+      e.stopPropagation();
+      const videoId = $(this).data('video-id');
+      window.open(`/api/stream/offline-mode/?video_id=${videoId}`, '_blank');
+    });
+
+    // Update the click handler for the edit buttons to prevent card click
+    $('.edit-offline-video').on('click', function(e) {
+      e.stopPropagation();
+      const videoId = $(this).data('video-id');
+      const videoTitle = $(this).data('video-title');
+      const videoDescription = $(this).data('video-description');
+
+      // You can implement edit functionality for offline videos here
+      window.location.href = `/offline-mode.html?video_id=${videoId}`;
+    });
+
+    // Update source cards click to handle offline videos - modify to work with new design
+    $('.video-player-card').on('click', function(e) {
+      // Don't trigger if clicking buttons inside the card
+      if (!$(e.target).closest('.btn').length) {
+        const sourceId = $(this).data('source-id');
+        if (sourceId.toString().startsWith('offline-')) {
+          // It's an offline video
+          const videoId = sourceId.replace('offline-', '');
+          window.open(`/api/stream/offline-mode/?video_id=${videoId}`, '_blank');
+        }
       }
     });
   });
 </script>
+<style>
+  /* Video Player Card Styling */
+  .video-player-card {
+    transition: transform 0.3s ease;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .video-player-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+  }
+
+  .video-thumbnail-container {
+    position: relative;
+    overflow: hidden;
+    padding-top: 56.25%; /* 16:9 Aspect Ratio */
+    background-color: #000;
+  }
+
+  .video-thumbnail {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: all 0.3s ease;
+  }
+
+  .video-player-card:hover .video-thumbnail {
+    transform: scale(1.05);
+    opacity: 0.7;
+  }
+
+  .play-button-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .video-player-card:hover .play-button-overlay {
+    opacity: 1;
+  }
+
+  .btn-play-video {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s ease;
+    border: 2px solid white;
+    padding: 0;
+  }
+
+  .btn-play-video:hover {
+    background-color: #dc3545;
+    transform: scale(1.1);
+  }
+
+  .video-info-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 15px;
+    background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+    color: white;
+  }
+
+  .video-controls {
+    background-color: #f8f9fa;
+    border-top: 1px solid rgba(0,0,0,0.1);
+  }
+</style>
 {% endblock %}

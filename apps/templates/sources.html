@@ -1,0 +1,192 @@
+{% extends layout_path %}
+{% load static %}
+
+{% block vendor_css %}
+  {{ block.super }}
+  <style>
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .video-container {
+      border: 2px dashed #ccc;
+      padding: 15px;
+      border-radius: 8px;
+      min-height: 300px;
+      display: flex;
+      flex-direction: column;
+    }
+    .video-controls {
+      display: flex;
+      gap: 1rem;
+      margin: 1rem 0;
+      align-items: center;
+    }
+    .frame-display {
+      position: relative;
+      width: 100%;
+      background: #f8f9fa;
+      min-height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .frame-image {
+      max-width: 100%;
+      max-height: 600px;
+    }
+    .detection-info {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="container-xxl flex-grow-1 container-p-y">
+  <h4 class="fw-bold py-3 mb-4">Kaynak Listesi <span class="badge bg-primary">{{ videos|length }} video</span></h4>
+
+  <div class="video-grid">
+    {% if videos %}
+      {% for video in videos %}
+      <div class="video-container" id="video-{{ video.id }}">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="mb-0">{{ video.title }}</h5>
+          <span class="badge bg-label-secondary">{{ video.created_at|date:"d.m.Y H:i" }}</span>
+        </div>
+
+        {% if video.description %}
+        <p class="text-muted small mb-2">{{ video.description }}</p>
+        {% endif %}
+
+        <div class="frame-display">
+          <img id="frame-{{ video.id }}" class="frame-image" src="" alt="Video Frame"/>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center my-2">
+          <div>
+            <span class="badge bg-label-info">{{ video.video_file.name|default:"No filename" }}</span>
+            {% if video.status %}
+              <span class="badge bg-label-{{ video.status|lower }}">{{ video.status }}</span>
+            {% endif %}
+          </div>
+          <div>
+            <span id="frame-counter-{{ video.id }}" class="badge bg-label-primary">Kare: 0/0</span>
+            <span id="fps-counter-{{ video.id }}" class="badge bg-label-info ms-2">FPS: 0</span>
+          </div>
+        </div>
+
+        <div class="video-controls">
+          <button class="btn btn-sm btn-primary btn-prev" onclick="prevFrame('{{ video.id }}')">
+            <i class="ti ti-player-track-prev"></i>
+          </button>
+          <button class="btn btn-sm btn-success btn-play" onclick="togglePlay('{{ video.id }}')">
+            <i class="ti ti-player-play"></i>
+          </button>
+          <button class="btn btn-sm btn-primary btn-next" onclick="nextFrame('{{ video.id }}')">
+            <i class="ti ti-player-track-next"></i>
+          </button>
+        </div>
+
+        <div class="detection-info" id="detections-{{ video.id }}">
+          <h6 class="mb-2">Tespitler</h6>
+          <div id="detection-list-{{ video.id }}" class="small"></div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="col-12 text-center p-5">
+        <h5>Henüz video bulunmamaktadır</h5>
+        <p>Video eklemek için lütfen yönetici panelinden OfflineMode oluşturun.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+const videoStates = {};
+
+function initVideoPlayer(videoId) {
+  videoStates[videoId] = {
+    currentFrame: 0,
+    totalFrames: 0,
+    isPlaying: false,
+    playInterval: null,
+    fps: 30
+  };
+
+  updateFrame(videoId, 0);
+}
+
+function updateFrame(videoId, frameNum) {
+  fetch(`/api/get-frame/?video_id=${videoId}&frame=${frameNum}`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        document.getElementById(`frame-${videoId}`).src = `data:image/jpeg;base64,${data.frame}`;
+        videoStates[videoId].totalFrames = data.total_frames;
+        videoStates[videoId].fps = data.fps;
+
+        document.getElementById(`frame-counter-${videoId}`).textContent =
+          `Kare: ${frameNum}/${data.total_frames}`;
+        document.getElementById(`fps-counter-${videoId}`).textContent =
+          `FPS: ${data.fps.toFixed(1)}`;
+
+        updateDetections(videoId, data.detections);
+      }
+    });
+}
+
+function updateDetections(videoId, detections) {
+  const detectionList = document.getElementById(`detection-list-${videoId}`);
+  detectionList.innerHTML = detections.map(det => `
+    <div class="detection-item">
+      <strong>${det.class}</strong> - Güven: ${(det.confidence * 100).toFixed(1)}%
+    </div>
+  `).join('');
+}
+
+function togglePlay(videoId) {
+  const state = videoStates[videoId];
+  if (!state.isPlaying) {
+    state.playInterval = setInterval(() => {
+      state.currentFrame++;
+      if (state.currentFrame >= state.totalFrames) {
+        state.currentFrame = 0;
+      }
+      updateFrame(videoId, state.currentFrame);
+    }, 1000 / state.fps);
+    state.isPlaying = true;
+  } else {
+    clearInterval(state.playInterval);
+    state.isPlaying = false;
+  }
+}
+
+function nextFrame(videoId) {
+  const state = videoStates[videoId];
+  state.currentFrame = Math.min(state.currentFrame + 1, state.totalFrames - 1);
+  updateFrame(videoId, state.currentFrame);
+}
+
+function prevFrame(videoId) {
+  const state = videoStates[videoId];
+  state.currentFrame = Math.max(state.currentFrame - 1, 0);
+  updateFrame(videoId, state.currentFrame);
+}
+
+// Initialize all video players
+document.addEventListener('DOMContentLoaded', () => {
+  {% for video in videos %}
+    initVideoPlayer('{{ video.id }}');
+  {% endfor %}
+});
+</script>
+{% endblock %}

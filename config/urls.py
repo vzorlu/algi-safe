@@ -4,6 +4,7 @@ from web_project.views import SystemView
 from apps.containers.views import get_call_details
 from django.conf import settings
 from django.conf.urls.static import static
+from apps.views import SourcesView
 
 admin.site.site_header = "Algi Yönetim Paneli"
 admin.site.site_title = "AI Studio"
@@ -80,6 +81,8 @@ urlpatterns = [
     path("api/stream/", include("stream.urls")),
     path("", include("council.urls")),
     path("get_call_details/<str:call_id>/", get_call_details, name="get_call_details"),
+    # Add a direct path to sources
+    path("sources/", SourcesView.as_view(), name="sources"),
 ]
 
 if settings.DEBUG:

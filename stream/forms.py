@@ -5,9 +5,12 @@ from .models import OfflineMode
 class OfflineModeForm(forms.ModelForm):
     class Meta:
         model = OfflineMode
-        fields = "__all__"
-        widgets = {
-            "video_file": forms.FileInput(
-                attrs={"accept": "video/*", "class": "form-control", "data-show-upload-progress": "true"}
-            ),
-        }
+        fields = ["video_file", "device_name"]
+
+    def clean(self):
+        cleaned_data = super().clean()
+        # Ensure the form action doesn't append "undefined"
+        return cleaned_data
+
+    class Media:
+        js = ("js/offlinemode_form.js",)

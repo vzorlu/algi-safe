@@ -35,8 +35,6 @@ from rest_framework.permissions import AllowAny
 import cv2
 import base64
 from django.http import JsonResponse
-from .tasks import process_video_frames
-from .cache import get_cached_frames
 from django.http import HttpResponse
 import requests
 from django.views.decorators.http import require_http_methods
@@ -425,39 +423,56 @@ def get_frame(request):
     frame_number = int(request.GET.get("frame", 0))
 
     try:
-        # Try to get cached frames first
-        cached_data = get_cached_frames(video_id)
-        if cached_data and 0 <= frame_number < len(cached_data["frames"]):
-            return JsonResponse(
-                {
-                    "status": "success",
-                    "frame": cached_data["frames"][frame_number]["frame"],
-                    "total_frames": cached_data["total_frames"],
-                    "fps": cached_data["fps"],
-                }
-            )
-
-        # If not cached, process video
         video = OfflineMode.objects.get(id=video_id)
         video_path = os.path.join(settings.MEDIA_ROOT, str(video.video_file))
 
-        # Start async processing if not already started
-        if not cached_data:
-            process_video_frames.delay(video_id, video_path)
-
-        # Return single frame while processing
         cap = cv2.VideoCapture(video_path)
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
         ret, frame = cap.read()
 
         if ret:
+            # Process frame with YOLOv8
+            results = yolo11.predict(source=frame, conf=0.45)[0]
+
+            # Draw detections on frame
+            for box in results.boxes.data:
+                x1, y1, x2, y2, conf, cls = box.tolist()
+                class_name = results.names[int(cls)]
+
+                # Draw rectangle and label
+                cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+                cv2.putText(
+                    frame,
+                    f"{class_name} {conf:.2f}",
+                    (int(x1), int(y1) - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.9,
+                    (0, 255, 0),
+                    2,
+                )
+
+            # Convert to base64
             _, buffer = cv2.imencode(".jpg", frame)
             frame_b64 = base64.b64encode(buffer).decode("utf-8")
+
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             fps = cap.get(cv2.CAP_PROP_FPS)
 
             return JsonResponse(
-                {"status": "success", "frame": frame_b64, "total_frames": total_frames, "fps": fps, "processing": True}
+                {
+                    "status": "success",
+                    "frame": frame_b64,
+                    "total_frames": total_frames,
+                    "fps": fps,
+                    "detections": [
+                        {
+                            "class": results.names[int(box.cls)],
+                            "confidence": float(box.conf),
+                            "bbox": box.xyxy[0].tolist(),
+                        }
+                        for box in results.boxes
+                    ],
+                }
             )
 
     except Exception as e:

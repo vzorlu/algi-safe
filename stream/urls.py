@@ -15,6 +15,7 @@ from .views import (
 )
 from .api_views import class_data_list, icon_mappings, council_filters, map_reports_filter
 from council import views as vi
+from services.views import ServicesView
 
 router = DefaultRouter()
 router.register(r"images", StreamImageViewSet)
@@ -46,6 +47,7 @@ urlpatterns = [
     path("proxy-image/", proxy_image, name="proxy_image"),
     path("address-suggestions/", address_suggestions, name="address_suggestions"),
     path("rules-add/", RulesViewSet.as_view({"get": "list", "post": "create"}), name="rules-add"),  # Modified this line
+    path("sources/", ServicesView.as_view(), name="sources"),  # Fixed ServicesView call
     re_path(r"ws/video/$", consumers.VideoConsumer.as_asgi()),
     re_path(r"wss/video/$", consumers.VideoConsumer.as_asgi()),
 ]

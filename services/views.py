@@ -15,6 +15,7 @@ import json
 import os
 from django.conf import settings
 from channels.generic.websocket import AsyncWebsocketConsumer
+from stream.models import OfflineMode  # Add import for OfflineMode
 
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "protocol_whitelist;file,rtp,udp,tcp"
 
@@ -314,3 +315,15 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
         finally:
             if "cap" in locals():
                 cap.release()
+
+
+def source_list(request):
+    sources = Sources.objects.all()  # Your existing source query
+    offline_videos = OfflineMode.objects.all().order_by("-created_at")  # Add offline videos
+
+    context = {
+        "sources": sources,
+        "offline_videos": offline_videos,
+        # ...existing context...
+    }
+    return render(request, "sources.html", context)

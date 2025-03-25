@@ -158,18 +158,10 @@ class ClassData(models.Model):
 
 
 class OfflineMode(models.Model):
-    """Model for offline video processing with coordinates"""
-
     video_file = models.FileField(
         upload_to="offline_videos/",
         validators=[FileExtensionValidator(allowed_extensions=["mp4", "avi", "mov"])],
         verbose_name="Video Dosyası",
-    )
-
-    coordinates_json = models.FileField(
-        upload_to="offline_coordinates/",
-        validators=[FileExtensionValidator(allowed_extensions=["json"])],
-        verbose_name="Koordinat JSON Dosyası",
     )
 
     device_name = models.CharField(max_length=255, verbose_name="Cihaz Adı")
@@ -189,27 +181,6 @@ class OfflineMode(models.Model):
 
     def __str__(self):
         return f"{self.device_name} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
-
-
-class OfflineVideoLocation(models.Model):
-    """Model to store location data for each timestamp in offline videos"""
-
-    offline_video = models.ForeignKey(OfflineMode, on_delete=models.CASCADE, related_name="locations")
-    timestamp = models.DateTimeField()
-    latitude = models.FloatField()
-    longitude = models.FloatField()
-    address = models.TextField(null=True, blank=True)
-    speed = models.FloatField(null=True, blank=True)
-    heading = models.FloatField(null=True, blank=True)
-
-    class Meta:
-        verbose_name = "Video Konum Verisi"
-        verbose_name_plural = "Video Konum Verileri"
-        ordering = ["timestamp"]
-        indexes = [models.Index(fields=["timestamp"]), models.Index(fields=["offline_video", "timestamp"])]
-
-    def __str__(self):
-        return f"{self.offline_video.device_name} - {self.timestamp}"
 
 
 class RulesAdd(models.Model):

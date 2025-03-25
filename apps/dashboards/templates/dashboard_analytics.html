@@ -23,11 +23,6 @@
   <script src="{% static 'vendor/libs/datatables-bs5/datatables-bootstrap5.js' %}"></script>
 {% endblock %}
 
-{% block page_css %}
-  {{ block.super }}
-  <link rel="stylesheet" href="{% static 'vendor/css/pages/cards-advance.css' %}" />
-{% endblock %}
-
 {% block page_js %}
   {{ block.super }}
   <script src="{% static 'js/app-logistics-dashboard.js' %}"></script>
@@ -61,7 +56,6 @@
             <div class="row g-6">
               <!-- Card Border Shadow -->
               <div class="row g-6">
-                <!-- Ağaç Sayısı Card -->
                 <div class="col-lg-3 col-sm-6">
                     <div class="card card-border-shadow-primary h-100">
                         <div class="card-body">
@@ -73,7 +67,7 @@
                                 </div>
                                 <h4 class="mb-0">42</h4>
                             </div>
-                            <p class="mb-1">Ağaç Sayısı</p>
+                            <p class="mb-1">Baret</p>
                             <p class="mb-0">
                                 <span class="text-heading fw-medium me-2">+18.2%</span>
                                 <small class="text-muted">Geçen Haftaya Göre Artış</small>
@@ -94,7 +88,7 @@
                                 </div>
                                 <h4 class="mb-0">8</h4>
                             </div>
-                            <p class="mb-1">Araç Konumu</p>
+                            <p class="mb-1">Koruyucu Ayakkabı</p>
                             <p class="mb-0">
                                 <span class="text-heading fw-medium me-2">-8.7%</span>
                                 <small class="text-muted">Geçen Haftaya Göre Azalış</small>
@@ -115,7 +109,7 @@
                                 </div>
                                 <h4 class="mb-0">2</h4>
                             </div>
-                            <p class="mb-1">Bozuk Yol4</p>
+                            <p class="mb-1">Eldiven</p>
                             <p class="mb-0">
                                 <span class="text-heading fw-medium me-2">+4.3%</span>
                                 <small class="text-muted">Geçen Haftaya Göre Artış</small>
@@ -136,7 +130,7 @@
                                 </div>
                                 <h4 class="mb-0">98</h4>
                             </div>
-                            <p class="mb-1">Çevre Kirliliği</p>
+                            <p class="mb-1">Gözlük</p>
                             <p class="mb-0">
                                 <span class="text-heading fw-medium me-2">+4.3%</span>
                                 <small class="text-muted">Geçen Haftaya Göre Artış</small>
@@ -152,7 +146,7 @@
                 <div class="card h-100">
                   <div class="card-header d-flex align-items-center justify-content-between">
                     <div class="card-title mb-0">
-                      <h5 class="m-0 me-2">Eksik Ekipman Analizi</h5>
+                      <h5 class="m-0 me-2">İSG Maddeleri: Baret, Koruyucu Ayakkabı, Eldiven, Gözlük</h5>
                     </div>
                     <div class="dropdown">
                       <button class="btn btn-text-secondary rounded-pill text-muted border-0 p-2 me-n1" type="button" id="vehiclesOverview" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -175,7 +169,7 @@
                                 <div class="me-2">
                                   <img src="{% static 'belediyeicons/cop-konteynerleri.svg' %}" alt="Dolu Çöp" width="24"/>
                                 </div>
-                                <h6 class="mb-0 fw-normal">Dolu Çöp</h6>
+                                <h6 class="mb-0 fw-normal">Baret</h6>
                               </div>
                             </td>
                             <td class="text-end pe-0 text-nowrap">
@@ -191,7 +185,7 @@
                                 <div class="me-2">
                                   <img src="{% static 'belediyeicons/insan-populasyonu.svg' %}" alt="İnsan Popülasyonu" width="24"/>
                                 </div>
-                                <h6 class="mb-0 fw-normal">İnsan Popülasyonu</h6>
+                                <h6 class="mb-0 fw-normal">Koruyucu Ayakkabı</h6>
                               </div>
                             </td>
                             <td class="text-end pe-0 text-nowrap">
@@ -207,7 +201,7 @@
                                 <div class="me-2">
                                   <img src="{% static 'belediyeicons/kirik-refus.svg' %}" alt="Kırık Refüj" width="24"/>
                                 </div>
-                                <h6 class="mb-0 fw-normal">Kırık Refüj</h6>
+                                <h6 class="mb-0 fw-normal">Eldiven</h6>
                               </div>
                             </td>
                             <td class="text-end pe-0 text-nowrap">
@@ -223,7 +217,7 @@
                                 <div class="me-2">
                                   <img src="{% static 'belediyeicons/park-ihlali.svg' %}" alt="Park İhlali" width="24"/>
                                 </div>
-                                <h6 class="mb-0 fw-normal">Park İhlali</h6>
+                                <h6 class="mb-0 fw-normal">Gözlük</h6>
                               </div>
                             </td>
                             <td class="text-end pe-0 text-nowrap">
@@ -237,10 +231,10 @@
                       </table>
                     </div>
                     <div class="d-none d-lg-flex vehicles-progress-labels mb-6">
-                      <div class="vehicles-progress-label on-the-way-text" style="width: 39.7%;">Çöp</div>
-                      <div class="vehicles-progress-label unloading-text" style="width: 28.3%;">İnsan</div>
-                      <div class="vehicles-progress-label loading-text" style="width: 17.4%;">Refüj</div>
-                      <div class="vehicles-progress-label waiting-text text-nowrap" style="width: 14.6%;">Park İhlali</div>
+                      <div class="vehicles-progress-label on-the-way-text" style="width: 39.7%;">Baret</div>
+                      <div class="vehicles-progress-label unloading-text" style="width: 28.3%;">Koruyucu Ayakkabı</div>
+                      <div class="vehicles-progress-label loading-text" style="width: 17.4%;">Eldiven</div>
+                      <div class="vehicles-progress-label waiting-text text-nowrap" style="width: 14.6%;">Gözlük</div>
                     </div>
                     <div class="vehicles-overview-progress progress rounded-3 mb-6" style="height: 46px;">
                       <div class="progress-bar fw-medium text-start bg-lighter text-dark px-4 rounded-0" role="progressbar" style="width: 39.7%" aria-valuenow="39.7" aria-valuemin="0" aria-valuemax="100">39.7%</div>
@@ -259,7 +253,7 @@
                 <div class="card h-100">
                   <div class="card-header d-flex align-items-center justify-content-between">
                     <div class="card-title mb-0">
-                      <h5 class="mb-1">Aylık Analiz Raporu</h5>
+                      <h5 class="mb-1">İSG Maddeleri: Baret, Koruyucu Ayakkabı, Eldiven, Gözlük</h5>
                        <!--<p class="card-subtitle">Total number of deliveries 23.8k</p>-->
                     </div>
                     <div class="btn-group">
@@ -293,7 +287,7 @@
                 <div class="card">
                   <div class="card-header d-flex align-items-center justify-content-between">
                     <div class="card-title mb-0">
-                      <h5 class="m-0 me-2">Son Tespit Edilen Sınıflar</h5>
+                      <h5 class="m-0 me-2">Son Tespit Edilen İSG Maddeleri</h5>
                     </div>
                     <div class="dropdown">
                       <button class="btn btn-text-secondary rounded-pill text-muted border-0 p-2 me-n1" type="button" id="routeVehicles" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -416,7 +410,7 @@
     <td class="pt-5">
       <div class="d-flex justify-content-start align-items-center">
         <div class="d-flex flex-column">
-          <p class="mb-0 text-heading">Ağaç Sayısı</p>
+          <p class="mb-0 text-heading">Baret</p>
           <small class="text-body">Park ve Bahçeler</small>
         </div>
       </div>
@@ -437,7 +431,7 @@
     <td class="pt-5">
       <div class="d-flex justify-content-start align-items-center">
         <div class="d-flex flex-column">
-          <p class="mb-0 text-heading">Araç Konumu</p>
+          <p class="mb-0 text-heading">Koruyucu Ayakkabı</p>
           <small class="text-body">Zabıta Müdürlüğü</small>
         </div>
       </div>
@@ -458,7 +452,7 @@
     <td class="pt-5">
       <div class="d-flex justify-content-start align-items-center">
         <div class="d-flex flex-column">
-          <p class="mb-0 text-heading">Bozuk Yol10</p>
+          <p class="mb-0 text-heading">Eldiven</p>
           <small class="text-body">Fen İşleri Müdürlüğü</small>
         </div>
       </div>
@@ -479,7 +473,7 @@
     <td class="pt-5">
       <div class="d-flex justify-content-start align-items-center">
         <div class="d-flex flex-column">
-          <p class="mb-0 text-heading">Çevre Kirliliği</p>
+          <p class="mb-0 text-heading">Gözlük</p>
           <small class="text-body">Çevre Koruma Müdürlüğü</small>
         </div>
       </div>

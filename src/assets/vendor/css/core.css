@@ -33014,8 +33014,10 @@ a.bg-vimeo:focus {
 }
 
 img.logos {
-  max-width: 170px;
+  max-width: 134px;
   display: block;
+  padding: 0 14px;
+  margin: 0 auto;
 }
 
 .modal-backdrop.show {

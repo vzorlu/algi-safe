@@ -7,10 +7,10 @@
       "slug": "dashboard-analytics"
     },
     {
-      "url": "harita-raporlari",
-      "name": "Harita Raporları",
-      "slug": "harita-raporlari",
-      "image": "/static/menu/2_harita_raporlari.png"
+      "image": "/static/menu/6_canli_konum.png",
+      "url": "sources",
+      "name": "Canlı",
+      "slug": "sources"
     },
     {
       "url": "raporlar",
@@ -53,18 +53,6 @@
       "name": "Görevler",
       "slug": "rules",
       "image": "/static/menu/8_gorevler_1.png"
-    },
-    {
-      "url": "jobs",
-      "name": "AI Drone",
-      "slug": "jobs",
-      "image": "/static/menu/9_kent_goz_1.png"
-    },
-    {
-      "url": "container",
-      "name": "AI Call Center",
-      "slug": "container",
-      "image": "/static/menu/10_sanal_asistan_2.png"
     },
     {
       "url": "logs",
